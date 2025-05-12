@@ -4,8 +4,9 @@ import json
 import argparse
 from transformers import AutoTokenizer
 from tqdm import tqdm
+import os
 
-def download_and_filt_2k(dataset_name = "tianyang/repobench_python_v1.1", prefix_path = "./dataprocess/datafile/python_datafile-2k"):
+def download_and_filt_2k(dataset_name = "tianyang/repobench_python_v1.1", prefix_path = "./datasets/datafile/python_datafile-2k/"):
 
     dataset = load_dataset(dataset_name, verification_mode="no_checks")
     data_list = []
@@ -21,19 +22,20 @@ def download_and_filt_2k(dataset_name = "tianyang/repobench_python_v1.1", prefix
         data_list.append(json_data)
         data_name_list.append(split_name)
 
-    ensure_dir(prefix_path)
+    
     for i, data_name in enumerate(data_name_list):
-        with open(f"{prefix_path}/{data_name}.json", "w", encoding="utf-8") as f:
+        file_path = os.path.join(prefix_path, f"{data_name}.json")
+        ensure_dir(file_path)
+        with open(file_path, "w", encoding="utf-8") as f:
             data = data_list[i]
             json.dump(data, f, indent=4)
 
 def download_compeltion_dataset(dataset_name = "tianyang/repobench-c", task_name = "java_cff", split_name="train", prefix_path = "./dataprocess/datafile/repobench-c"):
     dataset = load_dataset(dataset_name,  data_dir = task_name, split=split_name, revision="refs/convert/parquet",verification_mode="no_checks")
-    ensure_dir(prefix_path)
     save_path = f"{prefix_path}/{task_name}_{split_name}.parquet"
+    ensure_dir(save_path)
     dataset.to_parquet(save_path)  
     print(f"Dataset saved to: {save_path}")
-
 
 def get_code_line(code_str: str):
     """
@@ -113,10 +115,10 @@ def process_parquet(file_name,
 
 def main(args):
     if args.process_mode == "download_test_data":
-        download_dataset_name_list = ['python','java']
-        for dataset_name in download_dataset_name_list:
-            dataset_name = f"tianyang/repobench_{dataset_name}_v1.1"
-            download_and_filt_2k(dataset_name = dataset_name, prefix_path = f"./dataprocess/datafile/{dataset_name}_datafile-2k")
+        download_language_name_list = ['python','java']
+        for language_name in download_language_name_list:
+            dataset_name = f"tianyang/repobench_{language_name}_v1.1"
+            download_and_filt_2k(dataset_name = dataset_name, prefix_path = f"./datasets/repobench/{language_name}/test/")
 
     elif args.process_mode == "download_compeltion_train_dataset":
         download_task_name_list = ['java_cff','java_cfr','java_if','python_cff','python_cfr','python_if']
@@ -131,7 +133,7 @@ def main(args):
                                 #json_path = f"./dataprocess/datafile/repobench-c/tag/{qarquet}_train.json", \
                             )
     else:
-        print("Invalid process mode. Please choose from 'download_2k', 'download_compeltion_dataset', or 'process_parquet'.")
+        print("Invalid process mode. Please choose from 'download_test_data', 'download_compeltion_train_dataset', or 'process_parquet'.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
