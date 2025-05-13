@@ -3,6 +3,7 @@ import os
 from utils.json_util import load_list_from_json
 from trl.data_utils import maybe_apply_chat_template
 from transformers import AutoTokenizer
+from utils.code_util import comment_out
 
 def extract_content(s):
     # 去除外层<answer>标签及周围空白
@@ -51,7 +52,8 @@ def construct_prompt(
     cross_file_prompt = f"{comment_symbol} Repo Name: {data['repo_name']}\n"
 
     for snippet in data['context']:
-        cross_file_prompt += f"{comment_symbol} Path: {snippet['path']}\n{snippet['snippet']}" + "\n\n"
+        code_comment = comment_out(snippet['snippet'], language)
+        cross_file_prompt += f"{comment_symbol} Path: {snippet['path']}\n{code_comment}" + "\n\n"
     
     # in-file prompt
     in_file_prompt = f"{comment_symbol} Path: {data['file_path']}\n{data['import_statement']}\n{data['cropped_code']}\n"

@@ -1,4 +1,5 @@
-def comment_code(language, code):
+
+def comment_out(code, language):
     """
     给定编程语言和代码片段，将代码注释掉。
     
@@ -14,13 +15,13 @@ def comment_code(language, code):
     elif language.lower() == 'java' or language.lower() == 'c++':
         # Java 和 C++ 注释以 "//" 开头
         return '\n'.join([f'// {line}' for line in code.split('\n')])
-
     else:
-        return "Unsupported language for commenting."
+        # 抛出异常并输出不支持的语言名称
+        raise ValueError(f"Unsupported language: {language}")
 
 if __name__ == "__main__":
     # 测试函数
     code_sample = """def add(a, b):
         return a + b"""
 
-    print(comment_code('python', code_sample))
+    print(comment_out('python', code_sample))

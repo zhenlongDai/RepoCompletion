@@ -90,7 +90,7 @@ class InferencePipeline:
         
         print("data_list[0]:", self.data_list[0])
         print("------prompt----------\n" , self.data_list[0]['prompt'], "\n---------------------")
-
+        #input()
     
     def generation(self, data_list, model_path, dp_size, tp_size, local_dp_rank, dp_master_ip, dp_master_port,
                 temperature, top_p, gpu_memory_utilization, result_queue, lock, dtype, max_input_tokens, debug_mode = True):
@@ -115,16 +115,16 @@ class InferencePipeline:
                raise ValueError(f"DP rank {local_dp_rank}, Prompt: {prompt!r} not equal to output prompt: {part_eval_dataset[i]['prompt']!r}") 
             
             generated_text = output.outputs[0].text
-            #p = copy.deepcopy(data_list[i]['prompt'])
-            new_data = {"prompt": copy.deepcopy(part_eval_dataset[i]['prompt']), "generated_text": copy.deepcopy(generated_text), "tag": copy.deepcopy(part_eval_dataset[i]['tag'])
+            #"prompt": copy.deepcopy(part_eval_dataset[i]['prompt']),
+            new_data = { "generated_text": copy.deepcopy(generated_text), "tag": copy.deepcopy(part_eval_dataset[i]['tag'])
                         , "id": copy.deepcopy(part_eval_dataset[i]['id'])}
             result.append(new_data)
         
             #if debug_mode:
             #    print(f"DP rank {local_dp_rank}, Prompt: {prompt!r}, " f"Generated text: {generated_text!r}")
-        print("生成完成")
+        print(">>> Generation completed")
         result_queue.put(result)
-        print("放入完成")
+        print(">>> Put in result queue")
         del part_eval_dataset
         del part_prompt_list
         del outputs
@@ -132,7 +132,7 @@ class InferencePipeline:
         # Give engines time to pause their processing loops before exiting.
         sleep(1)
         gc.collect()
-        print("退出进程")
+        print(f"Exit the process {local_dp_rank}")
     
     def run_in_parpallel(self):
 
