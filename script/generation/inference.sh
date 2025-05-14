@@ -1,15 +1,17 @@
 
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 export NCCL_P2P_DISABLE=1
-model_name="Qwen2.5-Coder-0.5B-Instruct"
+model_name="Qwen2.5-Coder-7B-Instruct"
 language="java"
+eval_dataset_name="repobench"
 python -m generation.InferencePipeline \
     --config "generation/config_file/inferenceConfig.yaml" \
     --model "CodeLLM/$model_name" \
-    --data_path_dir "datasets/repobench/$language/test" \
+    --data_path_dir "datasets/$eval_dataset_name/$language/test" \
     --language "$language" \
-    --save_file_path "output_dir/generation/$language/$model_name.json" \
+    --save_file_path "output_dir/generation/$eval_dataset_name/$language/$model_name.json" \
     --dtype "float16" \
-    --dp_size 2 \
-    --tp_size 2
+    --dp_size 1 \
+    --tp_size 4 \
+    --gpu_memory_utilization 0.7
     

@@ -106,14 +106,14 @@ def construct_model_prompt(data, language, tokenizer, max_input_tokens, system_p
     model_prompt = maybe_apply_chat_template(example, tokenizer)["prompt"]  # construct input of model
     return model_prompt
 
-def load_eval_dataset(system_prompt, eval_dataset_name, data_path_dir, language, model_path, max_input_tokens, debug_mode):
+def load_eval_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     data_list = []
 
     if eval_dataset_name == "repobench":
         file_name2tag_map = {"cross_file_first":"cff", "cross_file_random":"cfr", "in_file":"if"} 
         for file_name, tag_name in file_name2tag_map.items():
-            data_file_path = os.path.join(data_path_dir, f"{file_name}.json")
+            data_file_path = os.path.join(data_dir_path, f"{file_name}.json")
             print(">>> start load data from data_file_path:", data_file_path)
             ori_data_list = load_list_from_json(data_file_path)
             data_num = len(data_list)
@@ -127,5 +127,23 @@ def load_eval_dataset(system_prompt, eval_dataset_name, data_path_dir, language,
     print("the number of data_list:", len(data_list))
     #input()
     return data_list if not debug_mode else data_list[:10]
-    
 
+def load_ground_truth(eval_dataset_name, data_dir_path): 
+    data_list = []
+    if eval_dataset_name == "repobench":
+        file_name2tag_map = {"cross_file_first":"cff", "cross_file_random":"cfr", "in_file":"if"} 
+        for file_name, tag_name in file_name2tag_map.items():
+            data_file_path = os.path.join(data_dir_path, f"{file_name}.json")
+            print(">>> start load data from data_file_path:", data_file_path)
+            ori_data_list = load_list_from_json(data_file_path)
+            data_num = len(data_list)
+            for idx, data in enumerate(ori_data_list):
+                temp_data = {}
+                temp_data['in_file_prompt'] = f"{data['import_statement']}\n{data['cropped_code']}\n"
+                temp_data['tag'] = tag_name
+                temp_data['id'] = idx + data_num
+                temp_data['ground_truth'] = data['next_line']
+                data_list.append(temp_data)
+    print("the number of data_list:", len(data_list))
+
+    return data_list 

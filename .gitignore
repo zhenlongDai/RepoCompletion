@@ -6,3 +6,5 @@ dataprocess/datafile/*
 CodeLLM/
 datasets/
 output_dir/
+build/
+evaluation/ts_package/*
