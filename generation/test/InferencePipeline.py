@@ -5,7 +5,7 @@ from typing import Any
 import sys
 import multiprocessing
 from multiprocessing import Process, Manager, Lock, Queue
-#from vllm.utils import get_open_port
+from vllm.utils import get_open_port
 import os
 from time import sleep
 from utils.dataset_util import load_eval_dataset
@@ -70,7 +70,8 @@ class InferencePipeline:
         self.dp_size = args.dp_size
         self.tp_size = args.tp_size
         self.dp_master_ip = "127.0.0.1"
-        self.dp_master_port = args.dp_master_port #get_open_port()
+        self.dp_master_port = get_open_port() if args.dp_master_port == 0 else args.dp_master_port
+
         data_path_dir = args.data_path_dir 
         self.debug_mode = args.debug_mode
         self.language = args.language
@@ -82,6 +83,8 @@ class InferencePipeline:
         self.gpu_memory_utilization = args.gpu_memory_utilization
         self.dtype = args.dtype
 
+        print("dp_master_port", self.dp_master_port)
+        input("Press Enter to continue...")
         data_list = load_eval_dataset(self.system_prompt, args.eval_dataset_name, data_path_dir, self.language, self.model_path, self.max_input_tokens, self.debug_mode)
         
         manager = Manager()
@@ -241,6 +244,7 @@ if __name__ == "__main__":
     multiprocessing.set_start_method('spawn')
     args = parse_args()  # 解析命令行参数并加载配置
     print(args)
+    print("init inference pipeline")
     inference_pipeline = InferencePipeline(args)
     inference_pipeline.run_in_parpallel()  # 启动推理管道
     print("finished\n")

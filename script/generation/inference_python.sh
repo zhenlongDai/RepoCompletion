@@ -2,7 +2,7 @@
 export CUDA_VISIBLE_DEVICES=6,7
 export NCCL_P2P_DISABLE=1
 model_name="Qwen2.5-Coder-7B-Instruct"
-language="java"
+language="python"
 eval_dataset_name="repobench"
 python -m generation.InferencePipeline \
     --config "generation/config_file/inferenceConfig.yaml" \

@@ -23,6 +23,15 @@ def main(model, dp_size, local_dp_rank, global_dp_rank, dp_master_ip,
     os.environ["VLLM_DP_SIZE"] = str(dp_size)
     os.environ["VLLM_DP_MASTER_IP"] = dp_master_ip
     os.environ["VLLM_DP_MASTER_PORT"] = str(dp_master_port)
+    print(
+        f"DP rank {global_dp_rank} (local rank {local_dp_rank}) "
+        f"of {dp_size} is starting up. "
+        f"Master IP: {dp_master_ip}, Master port: {dp_master_port}")
+    # Set the CUDA_VISIBLE_DEVICES environment variable to the GPUs
+    # assigned to this DP rank.
+    # This is done automatically by the engine processes.
+    # 设置CUDA_VISIBLE_DEVICES环境变量以分配给此DP rank的GPU。
+    # 这由引擎过程自动完成。
 
     # CUDA_VISIBLE_DEVICES for each DP rank is set automatically inside the
     # engine processes.
@@ -66,11 +75,11 @@ def main(model, dp_size, local_dp_rank, global_dp_rank, dp_master_ip,
     # 示范 rank 。
     sampling_params = SamplingParams(temperature=0.8,
                                      top_p=0.95,
-
                                      max_tokens=[16, 20][global_dp_rank % 2])
 
     # Create an LLM.
     # 创建一个 LLM。
+    print("GPUs_per_dp_rank",GPUs_per_dp_rank)
     llm = LLM(model=model,
               tensor_parallel_size=GPUs_per_dp_rank,
               gpu_memory_utilization = 0.25,

@@ -102,6 +102,7 @@ def construct_model_prompt(data, language, tokenizer, max_input_tokens, system_p
     """
     example = {}
     example['prompt'] = construct_prompt(data, language, tokenizer, max_input_tokens) #constrcut input of a specific task
+    example['prompt'] = f"```\n{ example['prompt']}\n```"
     example = make_conversation(example, system_prompt) #constrcut conversation based on input
     model_prompt = maybe_apply_chat_template(example, tokenizer)["prompt"]  # construct input of model
     return model_prompt

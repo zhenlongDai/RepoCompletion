@@ -3,7 +3,7 @@ eval_dataset_name: "repobench"
 dp_size: 1
 tp_size: 1
 dp_master_ip: "127.0.0.1"
-dp_master_port: 29500
+dp_master_port: 6530 #29310
 data_path_dir: "datasets/repobench/java/test"
 debug_mode: false
 language: "java"

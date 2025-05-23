@@ -5,7 +5,7 @@ from typing import Any
 import sys
 import multiprocessing
 from multiprocessing import Process, Manager, Lock, Queue
-#from vllm.utils import get_open_port
+from vllm.utils import get_open_port
 import os
 from time import sleep
 from utils.dataset_util import load_eval_dataset
@@ -69,7 +69,7 @@ class InferencePipeline:
         self.dp_size = args.dp_size
         self.tp_size = args.tp_size
         self.dp_master_ip = "127.0.0.1"
-        self.dp_master_port = args.dp_master_port #get_open_port()
+        self.dp_master_port = get_open_port() if args.dp_master_port==0 else args.dp_master_port
         data_path_dir = args.data_path_dir 
         self.debug_mode = args.debug_mode
         self.language = args.language
@@ -81,6 +81,7 @@ class InferencePipeline:
         self.gpu_memory_utilization = args.gpu_memory_utilization
         self.dtype = args.dtype
 
+        print("self.dp_master_port", self.dp_master_port)
         data_list = load_eval_dataset(self.system_prompt, args.eval_dataset_name, data_path_dir, self.language, self.model_path, self.max_input_tokens, self.debug_mode)
         
         manager = Manager()
@@ -98,6 +99,7 @@ class InferencePipeline:
         # 处理进程数据
         part_eval_dataset, part_prompt_list = get_part_eval_dataset(data_list, local_dp_rank, dp_size, lock)
         sampling_params = SamplingParams(temperature=temperature, top_p=top_p, max_tokens = max_input_tokens)
+        print(f"DP rank {local_dp_rank} start loading model......")
         llm = LLM(model=model_path,
                 tensor_parallel_size=tp_size,
                 gpu_memory_utilization=gpu_memory_utilization,
@@ -137,7 +139,8 @@ class InferencePipeline:
     def run_in_parpallel(self):
 
         procs = []
-        for local_dp_rank in range(0, self.tp_size):
+        for local_dp_rank in range(0, self.dp_size):
+            print("local_dp_rank", local_dp_rank)
             proc = Process(target=self.generation,
                             args=(self.data_list, self.model_path, self.dp_size, self.tp_size,
                                   local_dp_rank, self.dp_master_ip, self.dp_master_port, 
@@ -155,6 +158,8 @@ class InferencePipeline:
         results = []
         while not self.result_queue.empty():
             results.extend(self.result_queue.get())
+            
+        results = sorted(results, key=lambda x: x["id"])
         save_list_to_json(results, self.save_file_path )
         print("len(results)",len(results))
         print("results[0]:\n",results[0])
