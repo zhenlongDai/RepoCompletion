@@ -66,8 +66,8 @@ class Retriever:
 
         if self.retrieval_model_name == Retrieve_ModelName.codebert.value or self.retrieval_model_name == Retrieve_ModelName.unixcoder.value:
             self.tokenizer = AutoTokenizer.from_pretrained(self.retriever_model_path)
-           
             self.model = AutoModel.from_pretrained(self.retriever_model_path)
+            self.max_seq_length = 512 
             self.model = torch.nn.DataParallel(self.model).cuda()
             self.model.eval()
         else:
@@ -92,7 +92,7 @@ class Retriever:
             self.model.tokenizer.padding_side="right"
 
 
-    def unixcoder_tokenize(text, tokenizer, max_length):
+    def unixcoder_tokenize(self, text, tokenizer, max_length):
         """
         Converts text to a list of token ids.
         :param text: The text to be converted
@@ -109,7 +109,7 @@ class Retriever:
 
         return tokens_id  
     
-    def get_sentence_embeddings(self, source_ids = None, source_text = None, query_prefix= None):
+    def get_sentence_embeddings(self, source_ids = None, source_texts = None, query_prefix= None):
         """
         Forward propagation function, used to generate the embedding representation of the input.
         :param input_ids: The sequence of input IDs
@@ -120,6 +120,11 @@ class Retriever:
                 mask = source_ids.ne(self.tokenizer.pad_token_id)
                 sentence_embeddings = self.model(source_ids, attention_mask=mask)[1]
             elif self.retrieval_model_name == Retrieve_ModelName.unixcoder.value:
+                if source_ids is None and source_texts is not None:
+                    source_ids = []
+                    for i in range(len(source_texts)):
+                        source_ids.append(self.unixcoder_tokenize(source_texts[i], self.tokenizer, self.max_seq_length))
+                    source_ids = torch.tensor(source_ids, dtype=torch.long).cuda()
                 mask = source_ids.ne(self.tokenizer.pad_token_id)
                 token_embeddings = self.model(source_ids, attention_mask=mask)[0]
                 sentence_embeddings = (token_embeddings * mask.unsqueeze(-1)).sum(1) / mask.sum(-1).unsqueeze(-1)
@@ -127,22 +132,22 @@ class Retriever:
         else:
             if self.retrieval_model_name == Retrieve_ModelName.NV_Embed_v2.value:
                 if query_prefix == None:
-                    sentence_embeddings = self.model.encode(add_eos(source_text, self.model.tokenizer.eos_token), batch_size=len(source_text), normalize_embeddings=True)
+                    sentence_embeddings = self.model.encode(add_eos(source_texts, self.model.tokenizer.eos_token), batch_size=len(source_texts), normalize_embeddings=True)
                 else:
-                    sentence_embeddings = self.model.encode(add_eos(source_text, self.model.tokenizer.eos_token), batch_size=len(source_text), prompt=query_prefix, normalize_embeddings=True)
+                    sentence_embeddings = self.model.encode(add_eos(source_texts, self.model.tokenizer.eos_token), batch_size=len(source_texts), prompt=query_prefix, normalize_embeddings=True)
             elif self.retrieval_model_name == Retrieve_ModelName.gte_Qwen2_7B_instruct.value or self.retrieval_model_name == Retrieve_ModelName.gte_Qwen2_2B_instruct.value:
                 if query_prefix == None:
-                    sentence_embeddings = self.model.encode(source_text)
+                    sentence_embeddings = self.model.encode(source_texts)
                 else:
-                    sentence_embeddings = self.model.encode(source_text, prompt_name="query")
+                    sentence_embeddings = self.model.encode(source_texts, prompt_name="query")
             elif self.retrieval_model_name == Retrieve_ModelName.snow.value:
                 if query_prefix == None:
-                    sentence_embeddings = self.model.encode(source_text)
+                    sentence_embeddings = self.model.encode(source_texts)
                 else:
-                    sentence_embeddings = self.model.encode(source_text, prompt_name="query")
+                    sentence_embeddings = self.model.encode(source_texts, prompt_name="query")
                     
             else: 
-                sentence_embeddings = self.model.encode(source_text, convert_to_tensor=True)
+                sentence_embeddings = self.model.encode(source_texts, convert_to_tensor=True)
 
         return sentence_embeddings
 

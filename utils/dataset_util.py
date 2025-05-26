@@ -31,6 +31,7 @@ def construct_prompt(
     data: dict, 
     language: str = "java",
     tokenizer= None,
+    code_column_name = "cropped_code",
     max_token_nums: int = 15800,
     ) -> str:
     """
@@ -56,7 +57,7 @@ def construct_prompt(
         cross_file_prompt += f"{comment_symbol} Path: {snippet['path']}\n{code_comment}" + "\n\n"
     
     # in-file prompt
-    in_file_prompt = f"{comment_symbol} Path: {data['file_path']}\n{data['import_statement']}\n{data['cropped_code']}\n"
+    in_file_prompt = f"{comment_symbol} Path: {data['file_path']}\n{data['import_statement']}\n{data[code_column_name]}\n"
 
     # if we assign the tokenizer and the max_token_nums, we will truncate the cross-file prompt to meet the constraint
     if tokenizer is not None and max_token_nums is not None:
@@ -129,7 +130,7 @@ def load_eval_dataset(system_prompt, eval_dataset_name, data_dir_path, language,
     #input()
     return data_list if not debug_mode else data_list[:10]
 
-def load_ground_truth(eval_dataset_name, data_dir_path): 
+def load_ground_truth(eval_dataset_name, data_dir_path, code_column_name="cropped_code"): 
     data_list = []
     if eval_dataset_name == "repobench":
         file_name2tag_map = {"cross_file_first":"cff", "cross_file_random":"cfr", "in_file":"if"} 
@@ -140,7 +141,7 @@ def load_ground_truth(eval_dataset_name, data_dir_path):
             data_num = len(data_list)
             for idx, data in enumerate(ori_data_list):
                 temp_data = {}
-                temp_data['in_file_prompt'] = f"{data['import_statement']}\n{data['cropped_code']}\n"
+                temp_data['in_file_prompt'] = f"{data['import_statement']}\n{data[code_column_name]}\n"
                 temp_data['tag'] = tag_name
                 temp_data['id'] = idx + data_num
                 temp_data['ground_truth'] = data['next_line']
