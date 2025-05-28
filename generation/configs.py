@@ -21,7 +21,10 @@ class InferenceConfig:
     temperature: int
     top_p: int
     gpu_memory_utilization: float
-
+    use_lora: bool = False
+    lora_path: str = ""
+    without_context: bool = False
+    
 def load_config(config_path: str) -> InferenceConfig:
     """从 YAML 文件加载配置并返回 InferenceConfig 实例"""
     with open(config_path, 'r') as file:

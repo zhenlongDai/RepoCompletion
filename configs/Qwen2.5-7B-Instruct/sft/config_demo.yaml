@@ -1,44 +1,48 @@
 # Model arguments
-model_name_or_path: Qwen/Qwen2.5-7B-Instruct
+model_name_or_path: /data/dzl/package/CodeLLM/Qwen2.5-Coder-7B-Instruct
 model_revision: main
 torch_dtype: bfloat16
 attn_implementation: flash_attention_2
-
+use_peft: true
 # Data training arguments
-dataset_name: open-r1/OpenR1-Math-220k
-dataset_num_proc: 48
+dataset_name: /data/dzl/RL_project/RepoCompletion/datasets/repobench/python
+dataset_prompt_column: prompt
+dataset_completion_column: completion
+system_prompt: "You are a helpful assistant tasked with completing the next line of a repository-level code file.  You are provided with an incomplete code file, and other code snippets from the same repository are provided as comments above the code.  You should provide the user with the next line of the incomplete code. Please respond in the following format: <answer>\n```...```\n</answer>"
 
 # SFT trainer config
 bf16: true
 do_eval: false
-eval_strategy: 'no'
+eval_strategy: 'steps'
 gradient_accumulation_steps: 1
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-hub_model_id: Qwen2.5-1.5B-Open-R1-Distill
-hub_strategy: every_save
-learning_rate: 5.0e-05
+learning_rate: 1.0e-04
 log_level: info
 logging_steps: 5
 logging_strategy: steps
-lr_scheduler_type: cosine_with_min_lr
-lr_scheduler_kwargs:
-  min_lr_rate: 0.1
-packing: false
-max_length: 16384
+lr_scheduler_type: constant_with_warmup
+max_grad_norm: 0.2
+max_length: 2048
 max_steps: -1
-num_train_epochs: 1
-output_dir: data/Qwen2.5-1.5B-Open-R1-Distill
+num_train_epochs: 10
+output_dir: weights/python/Qwen2.5-7B-Instruct-Lora-test
 overwrite_output_dir: true
-per_device_eval_batch_size: 16
-per_device_train_batch_size: 16
-push_to_hub: true
+per_device_eval_batch_size: 8
+per_device_train_batch_size: 8
+hub_model_id: Qwen2.5-7B-Instruct-Lora
+hub_strategy: every_save
+push_to_hub: false
+wandb_project: R1
 report_to:
 - wandb
 save_strategy: "steps"
-save_steps: 100
-save_total_limit: 1
+save_steps: 0.02
+eval_steps: 0.02
+save_total_limit: 3
+load_best_model_at_end: true
+metric_for_best_model: eval_loss
+greater_is_better: false
 seed: 42
-use_liger_kernel: true
-warmup_ratio: 0.05
+warmup_ratio: 0.01

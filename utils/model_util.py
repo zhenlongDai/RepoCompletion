@@ -16,7 +16,9 @@ def get_tokenizer(model_args: ModelConfig, training_args: SFTConfig | GRPOConfig
 
     if training_args.chat_template is not None:
         tokenizer.chat_template = training_args.chat_template
-
+    # tokenizer.max_length = training_args.max_length
+    # tokenizer.padding_side = "left"
+    # tokenizer.padding = True
     return tokenizer
 
 

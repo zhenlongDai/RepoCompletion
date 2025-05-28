@@ -16,54 +16,7 @@ from utils.eval_utils import (
 )
 import os
 
-def compute_id_match(pred_ids, target_ids):
-    pred_ids = list(set(pred_ids))
-    target_ids = list(set(target_ids))
-    tp = 0
-    fp = 0
-    fn = 0
-    for pid in pred_ids:
-        if pid in target_ids:
-            tp += 1
-        else:
-            fp += 1
-    for tid in target_ids:
-        if tid not in pred_ids:
-            fn += 1
-    return tp, fp, fn
 
-
-def compute_edit_sim(samples):
-    refs, hyps = [], []
-    for s in samples:
-        refs.append(s["target"])
-        hyps.append(s["pred"])
-    return cal_edit_sim(refs, hyps)
-
-
-def process_examples(language, parser, args):
-    sample, ex = args
-    code_text = extract_content(sample["generated_text"], language)
-    prediction = postprocess_code_lines(ex["in_file_prompt"], code_text, parser, language)
-    prediction = remove_comments(prediction)
-    target = ex["ground_truth"]
-    target = remove_comments(target)
-
-    pred_lines = [l.strip() for l in prediction.split("\n") if l.strip()]
-    gt_lines = [l.strip() for l in target.split("\n") if l.strip()]
-    em_label = int(pred_lines == gt_lines)
-
-    pred_ids = extract_identifiers(prediction, language)
-    target_ids = extract_identifiers(target, language)
-
-    trunc_s = {
-        "task_id": sample["id"],
-        "pred": prediction,
-        "target": target,
-        "pred_ids": pred_ids,
-        "target_ids": target_ids
-    }
-    return trunc_s, em_label
 
 
 def calculate_results(detailed_results):
@@ -145,12 +98,7 @@ def compute_metric(args):
             "id_f1": 2 * id_tp / (2 * id_tp + id_fp + id_fn) if (2 * id_tp + id_fp + id_fn) != 0 else 0,
         })
 
-    return detailed_results, id2tag_map
 
-
-def output_results(args):
-    detailed_results, id2tag_map = compute_metric(args)
-    print(">>> Detailed Results:")
     calculate_results(detailed_results)
     if len(id2tag_map) != 0:
         tag2detailed_results = {}
@@ -163,7 +111,8 @@ def output_results(args):
         for tag, results in tag2detailed_results.items():
             print(f"Tag: {tag}")
             calculate_results(results)
-
+            
+    return detailed_results
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir_path",
@@ -188,7 +137,7 @@ def main():
                         help="Tree-sitter library path")
     args = parser.parse_args()
 
-    output_results(args)
+    compute_metric(args)
 
 if __name__ == '__main__':
     main()

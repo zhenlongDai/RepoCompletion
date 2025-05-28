@@ -12,49 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Supervised fine-tuning script for decoder language models.
-
-Usage:
-
-# One 1 node of 8 x H100s
-accelerate launch --config_file=recipes/accelerate_configs/zero3.yaml src/open_r1/sft.py \
-    --model_name_or_path Qwen/Qwen2.5-1.5B-Instruct \
-    --dataset_name open-r1/OpenR1-Math-220k \
-    --learning_rate 2.0e-5 \
-    --num_train_epochs 1 \
-    --packing \
-    --max_seq_length 4096 \
-    --per_device_train_batch_size 2 \
-    --gradient_accumulation_steps 8 \
-    --gradient_checkpointing \
-    --bf16 \
-    --logging_steps 5 \
-    --eval_strategy steps \
-    --eval_steps 100 \
-    --output_dir data/Qwen2.5-1.5B-Open-R1-Distill
-"""
-
 import logging
 import os
 import sys
 
 import datasets
+import torch
 import transformers
 from datasets import load_dataset
 from transformers import set_seed
 from transformers.trainer_utils import get_last_checkpoint
 
-from utils.configs import SFTConfig
-from utils.model_util import get_model, get_tokenizer
+from utils.configs import GRPOConfig, GRPOScriptArguments
+from open_r1.rewards import get_reward_funcs
+from utils.model_util import get_tokenizer
 from utils.callbacks import get_callbacks
 from utils.wandb_logging import init_wandb_training
-from utils.dataset_util import load_compeltion_dataset
-from trl import ModelConfig, ScriptArguments, SFTTrainer, TrlParser, get_peft_config, setup_chat_format
+from trl import GRPOTrainer, ModelConfig, TrlParser, get_peft_config
 
 
 logger = logging.getLogger(__name__)
-
 
 
 def main(script_args, training_args, model_args):
@@ -76,6 +53,11 @@ def main(script_args, training_args, model_args):
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
+    # Log on each process a small summary
+    logger.warning(
+        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}"
+        + f" distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
+    )
     logger.info(f"Model parameters {model_args}")
     logger.info(f"Script parameters {script_args}")
     logger.info(f"Training parameters {training_args}")
@@ -90,13 +72,19 @@ def main(script_args, training_args, model_args):
     if "wandb" in training_args.report_to:
         init_wandb_training(training_args)
 
+    # Load the dataset
+    dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
+
     ################
-    # Load datasets
+    # Load tokenizer
     ################
-    dataset = load_compeltion_dataset(script_args.dataset_name)
+    tokenizer = get_tokenizer(model_args, training_args)
+
+    # Get reward functions from the registry
+    reward_funcs = get_reward_funcs(script_args)
 
     # Format into conversation
-    def make_conversation(example, prompt_column: str = training_args.dataset_prompt_column, competion_column: str = training_args.dataset_completion_column):
+    def make_conversation(example, prompt_column: str = script_args.dataset_prompt_column):
         prompt = []
 
         if training_args.system_prompt is not None:
@@ -104,41 +92,41 @@ def main(script_args, training_args, model_args):
 
         if prompt_column not in example:
             raise ValueError(f"Dataset Question Field Error: {prompt_column} is not supported.")
-        prompt_text = example[prompt_column]
-        prompt.append({"role": "user", "content": f"```\n{prompt_text}\n```"})
-        compeltion = [{"role": "assistant", "content": example[competion_column]}]
 
-        return {"prompt": prompt, "completion": compeltion}
+        prompt.append({"role": "user", "content": example[prompt_column]})
+        return {"prompt": prompt}
 
     dataset = dataset.map(make_conversation)
 
-    ################
-    # Load tokenizer
-    ################
-    tokenizer = get_tokenizer(model_args, training_args)
+    for split in dataset:
+        if "messages" in dataset[split].column_names:
+            dataset[split] = dataset[split].remove_columns("messages")
 
-    ###################
-    # Load model
-    ###################
-    logger.info("*** Loading model ***")
-    model = get_model(model_args, training_args)
+    logger.info("*** Initializing model kwargs ***")
+    torch_dtype = (
+        model_args.torch_dtype if model_args.torch_dtype in ["auto", None] else getattr(torch, model_args.torch_dtype)
+    )
+    model_kwargs = dict(
+        revision=model_args.model_revision,
+        trust_remote_code=model_args.trust_remote_code,
+        attn_implementation=model_args.attn_implementation,
+        torch_dtype=torch_dtype,
+        use_cache=False if training_args.gradient_checkpointing else True,
+    )
+    training_args.model_init_kwargs = model_kwargs
 
-    # if tokenizer.chat_template is None:
-    #     logger.info("No chat template provided, using ChatML.")
-    #     model, tokenizer = setup_chat_format(model, tokenizer, format="chatml")
-
-    ############################
-    # Initialize the SFT Trainer
-    ############################
-    
-    trainer = SFTTrainer(
-        model=model,
+    #############################
+    # Initialize the GRPO trainer
+    #############################
+    trainer = GRPOTrainer(
+        model=model_args.model_name_or_path,
+        reward_funcs=reward_funcs,
         args=training_args,
         train_dataset=dataset[script_args.dataset_train_split],
-        eval_dataset=(dataset[script_args.dataset_test_split] if training_args.eval_strategy != "no" else None),
-        processing_class=tokenizer,
+        eval_dataset=dataset[script_args.dataset_test_split] if training_args.eval_strategy != "no" else None,
         peft_config=get_peft_config(model_args),
         callbacks=get_callbacks(training_args, model_args),
+        processing_class=tokenizer,
     )
 
     ###############
@@ -194,6 +182,6 @@ def main(script_args, training_args, model_args):
 
 
 if __name__ == "__main__":
-    parser = TrlParser((ScriptArguments, SFTConfig, ModelConfig))
+    parser = TrlParser((GRPOScriptArguments, GRPOConfig, ModelConfig))
     script_args, training_args, model_args = parser.parse_args_and_config()
     main(script_args, training_args, model_args)

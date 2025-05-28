@@ -8,3 +8,5 @@ datasets/
 output_dir/
 build/
 evaluation/ts_package/*
+wandb/
+weights/

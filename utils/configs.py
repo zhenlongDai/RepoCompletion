@@ -95,6 +95,14 @@ class SFTConfig(trl.SFTConfig):
         default=None,
         metadata={"help": ("The group to store runs under.")},
     )
+    dataset_prompt_column: str = field(
+        default="prompt",
+        metadata={"help": "Column to use as prompts for training."},
+    )
+    dataset_completion_column: str = field(
+        default="next_line",
+        metadata={"help": "Column to use as completion for training."},
+    )
 
 
 @dataclass

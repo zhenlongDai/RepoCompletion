@@ -14,8 +14,8 @@ from vllm import LLM, SamplingParams
 import copy
 import gc
 from datasets import load_dataset
-
-
+from vllm.lora.request import LoRARequest
+from multiprocessing import Barrier
 
     
 def parse_args() -> InferenceConfig:
@@ -80,21 +80,27 @@ class InferencePipeline:
         self.top_p = args.top_p
         self.gpu_memory_utilization = args.gpu_memory_utilization
         self.dtype = args.dtype
-
+        self.use_lora = args.use_lora
+        self.lora_path = args.lora_path
+        self.without_context = args.without_context
         print("self.dp_master_port", self.dp_master_port)
-        data_list = load_eval_dataset(self.system_prompt, args.eval_dataset_name, data_path_dir, self.language, self.model_path, self.max_input_tokens, self.debug_mode)
+        data_list = load_eval_dataset(self.system_prompt, args.eval_dataset_name, data_path_dir, self.language, 
+                                      self.model_path, self.max_input_tokens, self.debug_mode, self.without_context)
         
         manager = Manager()
         self.data_list = manager.list(data_list)
+        #self.result_queue =  multiprocessing.Queue()
         self.result_queue = manager.Queue()  # 用于存储每个进程的结果
         self.lock = Lock()  # 创建锁
-        
+        self.barrier = Barrier(self.dp_size)
+
         print("data_list[0]:", self.data_list[0])
         print("------prompt----------\n" , self.data_list[0]['prompt'], "\n---------------------")
         #input()
     
     def generation(self, data_list, model_path, dp_size, tp_size, local_dp_rank, dp_master_ip, dp_master_port,
-                temperature, top_p, gpu_memory_utilization, result_queue, lock, dtype, max_input_tokens, debug_mode = True):
+                temperature, top_p, gpu_memory_utilization, result_queue, lock, dtype, max_input_tokens, 
+                use_lora, lora_path = None, barrier = None, debug_mode = True):
         init_os_env(local_dp_rank, dp_size, dp_master_ip, dp_master_port)
         # 处理进程数据
         part_eval_dataset, part_prompt_list = get_part_eval_dataset(data_list, local_dp_rank, dp_size, lock)
@@ -104,10 +110,18 @@ class InferencePipeline:
                 tensor_parallel_size=tp_size,
                 gpu_memory_utilization=gpu_memory_utilization,
                 dtype = dtype,
-                enforce_eager=True)
+                enforce_eager=True,
+                enable_lora=use_lora
+                )
         
         print(f"rank {local_dp_rank} start generation......")
-        outputs = llm.generate(part_prompt_list, sampling_params)
+        if use_lora:
+            print(f"DP rank {local_dp_rank} using LoRA with path: {lora_path}")
+            outputs = llm.generate(part_prompt_list, 
+                                   sampling_params,
+                                   lora_request=LoRARequest(lora_name=f"lora_adapter_{local_dp_rank}",lora_int_id = local_dp_rank+1, lora_path=lora_path))
+        else:
+            outputs = llm.generate(part_prompt_list, sampling_params)
         # process the outputs.
         result = []
         for i, output in enumerate(outputs):
@@ -127,13 +141,14 @@ class InferencePipeline:
         print(">>> Generation completed")
         result_queue.put(result)
         print(">>> Put in result queue")
-        del part_eval_dataset
-        del part_prompt_list
-        del outputs
-        del data_list
+        # del part_eval_dataset
+        # del part_prompt_list
+        # del outputs
+        # del data_list
         # Give engines time to pause their processing loops before exiting.
-        sleep(1)
-        gc.collect()
+        #sleep(10)
+        #gc.collect()
+        barrier.wait()  # 等待所有进程到达此点
         print(f"Exit the process {local_dp_rank}")
     
     def run_in_parpallel(self):
@@ -145,7 +160,8 @@ class InferencePipeline:
                             args=(self.data_list, self.model_path, self.dp_size, self.tp_size,
                                   local_dp_rank, self.dp_master_ip, self.dp_master_port, 
                                   self.temperature, self.top_p, self.gpu_memory_utilization,
-                                  self.result_queue, self.lock, self.dtype, self.max_input_tokens, self.debug_mode)
+                                  self.result_queue, self.lock, self.dtype, self.max_input_tokens, 
+                                  self.use_lora, self.lora_path, self.barrier, self.debug_mode)
                             )
             proc.start()
             procs.append(proc)
@@ -153,6 +169,8 @@ class InferencePipeline:
         # 等待所有子进程结束
         for proc in procs:
             proc.join()
+            if proc.exitcode != 0:
+                print(f"Process {proc.pid} exited with code {proc.exitcode}")
 
         # 从 result_queue 获取每个子进程的返回值
         results = []
@@ -168,6 +186,7 @@ if __name__ == "__main__":
     multiprocessing.set_start_method('spawn')
     args = parse_args()  # 解析命令行参数并加载配置
     print(args)
+    print("without_context:", args.without_context)
     inference_pipeline = InferencePipeline(args)
     inference_pipeline.run_in_parpallel()  # 启动推理管道
     print("finished\n")
