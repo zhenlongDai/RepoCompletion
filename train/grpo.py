@@ -11,41 +11,78 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
 import os
+import logging
 import sys
-
 import datasets
 import torch
 import transformers
 from datasets import load_dataset
 from transformers import set_seed
 from transformers.trainer_utils import get_last_checkpoint
-
 from utils.configs import GRPOConfig, GRPOScriptArguments
-from open_r1.rewards import get_reward_funcs
-from utils.model_util import get_tokenizer
+from train.rewards import get_reward_funcs
 from utils.callbacks import get_callbacks
 from utils.wandb_logging import init_wandb_training
 from trl import GRPOTrainer, ModelConfig, TrlParser, get_peft_config
-
+from utils.dataset_util import load_compeltion_dataset
+from utils.model_util import get_tokenizer
 
 logger = logging.getLogger(__name__)
 
+orig_torch_load = torch.load
+
+def torch_wrapper(*args, **kwargs):
+    logging.warning("[comfyui-unsafe-torch] I have unsafely patched `torch.load`.  The `weights_only` option of `torch.load` is forcibly disabled.")
+    kwargs['weights_only'] = False
+
+    return orig_torch_load(*args, **kwargs)
+
+torch.load = torch_wrapper
+
+NODE_CLASS_MAPPINGS = {}
+__all__ = ['NODE_CLASS_MAPPINGS']
+
+
+# def build_compute_metrics(tokenizer):
+#     def compute_metrics(eval_pred):
+#         print(eval_pred)
+#         input("Press Enter to continue...")  # Debugging line to pause execution
+#         predictions, labels = eval_pred
+#         if hasattr(predictions, "shape") and len(predictions.shape) > 1:
+#             predictions = predictions.argmax(axis=-1)
+#         pred_str = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+#         label_str = tokenizer.batch_decode(labels, skip_special_tokens=True)
+#         exact_matches = [p.strip() == l.strip() for p, l in zip(pred_str, label_str)]
+#         accuracy = sum(exact_matches) / len(exact_matches) if exact_matches else 0.0
+#         return {"exact_match_accuracy": accuracy}
+#     return compute_metrics
 
 def main(script_args, training_args, model_args):
     # Set seed for reproducibility
     set_seed(training_args.seed)
+    
+    #验证wandb控制台是否关闭
+    
+    # Debug: 打印 local_rank
+    rank = getattr(training_args, "local_rank", None)
+    if rank is None:
+        rank = getattr(training_args, "process_index", None)
+    print(">>> local_rank/process_index:", rank)
+    if torch.cuda.is_available() and rank is not None and rank != -1:
+        torch.cuda.set_device(rank)
 
     ###############
     # Setup logging
     ###############
+    #输出到控制台
+
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
+    
     log_level = training_args.get_process_log_level()
     logger.setLevel(log_level)
     datasets.utils.logging.set_verbosity(log_level)
@@ -72,19 +109,23 @@ def main(script_args, training_args, model_args):
     if "wandb" in training_args.report_to:
         init_wandb_training(training_args)
 
+    
     # Load the dataset
-    dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
+    #dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
 
-    ################
+    #print("model_init_kwargs:", training_args.model_init_kwargs)
+    #input("Press Enter to continue...")  # Debugging line to pause execution
     # Load tokenizer
-    ################
     tokenizer = get_tokenizer(model_args, training_args)
 
     # Get reward functions from the registry
     reward_funcs = get_reward_funcs(script_args)
 
     # Format into conversation
-    def make_conversation(example, prompt_column: str = script_args.dataset_prompt_column):
+    dataset = load_compeltion_dataset(script_args.dataset_name, script_args.language)
+
+    # Format into conversation
+    def make_conversation(example, prompt_column: str = script_args.dataset_prompt_column, competion_column: str = script_args.dataset_completion_column):
         prompt = []
 
         if training_args.system_prompt is not None:
@@ -92,10 +133,11 @@ def main(script_args, training_args, model_args):
 
         if prompt_column not in example:
             raise ValueError(f"Dataset Question Field Error: {prompt_column} is not supported.")
-
-        prompt.append({"role": "user", "content": example[prompt_column]})
+        prompt_text = example[prompt_column]
+        prompt.append({"role": "user", "content": f"```\n{prompt_text}\n```"})
+        #compeltion = [{"role": "assistant", "content": example[competion_column]}]
         return {"prompt": prompt}
-
+    
     dataset = dataset.map(make_conversation)
 
     for split in dataset:
@@ -128,7 +170,7 @@ def main(script_args, training_args, model_args):
         callbacks=get_callbacks(training_args, model_args),
         processing_class=tokenizer,
     )
-
+    #trainer.compute_metrics=build_compute_metrics(tokenizer)  # 这里传递,无效参数
     ###############
     # Training loop
     ###############
@@ -155,7 +197,7 @@ def main(script_args, training_args, model_args):
     # Save everything else on main process
     kwargs = {
         "dataset_name": script_args.dataset_name,
-        "tags": ["open-r1"],
+        "tags": ["code_completion"],
     }
     if trainer.accelerator.is_main_process:
         trainer.create_model_card(**kwargs)

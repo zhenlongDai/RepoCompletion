@@ -25,6 +25,10 @@ class GRPOConfig(trl.GRPOConfig):
     """
     args for callbacks, benchmarks etc
     """
+    group_port: Optional[int] = field(
+        default= 52216,
+        metadata={"help": "The port to use for the group communication."},
+    )
 
     benchmarks: list[str] = field(
         default_factory=lambda: [],
@@ -130,6 +134,13 @@ class GRPOScriptArguments(trl.ScriptArguments):
         soft_punish_cache (`int`):
             Minimum number of tokens in completion.
     """
+    language: str = field(
+        default="python",
+        metadata={
+            "help": "Language for code format reward.",
+            "choices": ["python",  "java"],
+        },
+    )
 
     reward_funcs: list[str] = field(
         default_factory=lambda: ["accuracy", "format", "tag_count"],
@@ -188,6 +199,10 @@ class GRPOScriptArguments(trl.ScriptArguments):
     dataset_prompt_column: str = field(
         default="prompt",
         metadata={"help": "Column to use as prompts for training."},
+    )
+    dataset_completion_column: str = field(
+        default="solution",
+        metadata={"help": "Column to use as completion for training."},
     )
 
     e2b_router_url: Optional[str] = field(

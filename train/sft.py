@@ -106,11 +106,17 @@ def main(script_args, training_args, model_args):
             raise ValueError(f"Dataset Question Field Error: {prompt_column} is not supported.")
         prompt_text = example[prompt_column]
         prompt.append({"role": "user", "content": f"```\n{prompt_text}\n```"})
-        compeltion = [{"role": "assistant", "content": example[competion_column]}]
 
+        compeltion = [{"role": "assistant", "content": f"<answer>```\n{example[competion_column]}\n```</answer>"}]
+     
         return {"prompt": prompt, "completion": compeltion}
 
     dataset = dataset.map(make_conversation)
+
+    # #输出dataset中的第一条数据
+    # print("First example in dataset:")
+    # print(dataset[script_args.dataset_train_split][0])
+    # input("Press Enter to continue2...")
 
     ################
     # Load tokenizer
@@ -167,7 +173,7 @@ def main(script_args, training_args, model_args):
     # Save everything else on main process
     kwargs = {
         "dataset_name": script_args.dataset_name,
-        "tags": ["open-r1"],
+        "tags": ["code_completion"],
     }
     if trainer.accelerator.is_main_process:
         trainer.create_model_card(**kwargs)
@@ -178,12 +184,12 @@ def main(script_args, training_args, model_args):
     ##########
     # Evaluate
     ##########
-    if training_args.do_eval:
-        logger.info("*** Evaluate ***")
-        metrics = trainer.evaluate()
-        metrics["eval_samples"] = len(dataset[script_args.dataset_test_split])
-        trainer.log_metrics("eval", metrics)
-        trainer.save_metrics("eval", metrics)
+    # if training_args.do_eval:
+    #     logger.info("*** Evaluate ***")
+    #     metrics = trainer.evaluate()
+    #     metrics["eval_samples"] = len(dataset[script_args.dataset_test_split])
+    #     trainer.log_metrics("eval", metrics)
+    #     trainer.save_metrics("eval", metrics)
 
     #############
     # push to hub

@@ -33,20 +33,24 @@ def remove_language_tag(content, language):
     return content # Return the original string if no code blocks are found
 
 def extract_content(s, language):
+    try:
+        # 1.提取<answer> 和 </answer> 之间的内容
+        match = re.search(r'<answer>(.*?)</answer>', s, flags=re.DOTALL)
+        if match:
+            s = match.group(1)
+        else:
+            s = s.split('<answer>', 1)[1] if '<answer>' in s else s
+            s = s.split('</answer>', 1)[0] if '</answer>' in s else s
 
-    # 1.提取<answer> 和 </answer> 之间的内容
-    match = re.search(r'<answer>(.*?)</answer>', s, flags=re.DOTALL)
-    if match:
-        s = match.group(1)
-    else:
-        s = s.split('<answer>', 1)[1] if '<answer>' in s else s
-        s = s.split('</answer>', 1)[0] if '</answer>' in s else s
-
-    # 2. 提取所有代码块（```）并处理
-    matches = re.findall(r"```(.*?)(?=```|$)", s, flags=re.DOTALL)
-    s =  matches[0] if matches else s
-    s = remove_language_tag(s, language)
-    return s
+        # 2. 提取所有代码块（```）并处理
+        matches = re.findall(r"```(.*?)(?=```|$)", s, flags=re.DOTALL)
+        s =  matches[0] if matches else s
+        s = remove_language_tag(s, language)
+        return s
+    
+    except Exception as e:
+        print(f"verify failed: {e}, prediction: {s}")
+        return s
     
 
 if __name__ == "__main__":

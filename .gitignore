@@ -10,3 +10,6 @@ build/
 evaluation/ts_package/*
 wandb/
 weights/
+dzlenv/
+record/
+.vscode/

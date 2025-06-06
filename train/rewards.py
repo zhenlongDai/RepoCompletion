@@ -24,53 +24,111 @@ from typing import Callable, Dict, Optional
 
 from latex2sympy2_extended import NormalizationConfig
 from math_verify import LatexExtractionConfig, parse, verify
+from tree_sitter import Language, Parser
+from utils.eval_utils import (
+    postprocess_code_lines,
+    extract_identifiers,
+    cal_edit_sim,
+    remove_comments
+)
+from utils.code_util import extract_content
 
-
-
-def accuracy_reward(completions: list[list[dict[str, str]]], solution: list[str], **kwargs) -> list[Optional[float]]:
+def accuracy_code_reward(completions: list[list[dict[str, str]]], solution: list[str], **kwargs) -> list[Optional[float]]:
     """Reward function that checks if the completion is the same as the ground truth."""
     contents = [completion[0]["content"] for completion in completions]
     rewards = []
-    for content, sol in zip(contents, solution):
-        gold_parsed = parse(
-            sol,
-            extraction_mode="first_match",
-        )
-        if len(gold_parsed) != 0:
-            # We require the answer to be provided in correct latex (no malformed operators)
-            answer_parsed = parse(
-                content,
-                extraction_config=[
-                    LatexExtractionConfig(
-                        normalization_config=NormalizationConfig(
-                            nits=False,
-                            malformed_operators=False,
-                            basic_latex=True,
-                            equations=True,
-                            boxed="all",
-                            units=True,
-                        ),
-                        # Ensures that boxed is tried first
-                        boxed_match_priority=0,
-                        try_extract_without_anchor=False,
-                    )
-                ],
-                extraction_mode="first_match",
-            )
-            # Compute binary rewards if verifiable, `None` otherwise to skip this example
-            try:
-                reward = float(verify(gold_parsed, answer_parsed))
-            except Exception as e:
-                print(f"verify failed: {e}, answer: {answer_parsed}, gold: {gold_parsed}")
-                reward = None
-        else:
-            # If the gold solution is not parseable, we assign `None` to skip this example
-            reward = None
-            print("Failed to parse gold solution: ", sol)
+    input_code = kwargs['input_code']
+    language = kwargs['language']
+    language_object = Language(f"build/{language[0]}-lang-parser.so", language[0])
+    parser_util = Parser()
+    parser_util.set_language(language_object)
+
+    for content, sol, code, lan in zip(contents, solution, input_code, language):
+
+        # Extract code from the content
+        content = extract_content(content, lan)
+        # Postprocess the code to remove comments and format it
+        content = postprocess_code_lines(code, content, parser_util, lan)
+        content = remove_comments(content)
+        pred_lines = [l.strip() for l in content.split("\n") if l.strip()]
+        
+        sol = remove_comments(sol)
+        gt_lines = [l.strip() for l in sol.split("\n") if l.strip()]
+        reward = int(pred_lines == gt_lines)
         rewards.append(reward)
 
     return rewards
 
+def code_identifiers_reward(completions: list[list[dict[str, str]]], solution: list[str], **kwargs) -> list[Optional[float]]:
+    """Reward function that checks if the completion is the same as the ground truth."""
+    contents = [completion[0]["content"] for completion in completions]
+    rewards = []
+    input_code = kwargs['input_code']
+    language = kwargs['language']
+    language_object = Language(f"build/{language[0]}-lang-parser.so", language[0])
+    parser_util = Parser()
+    parser_util.set_language(language_object)
+
+    for content, sol, code, lan in zip(contents, solution, input_code, language):
+
+        # Extract code from the content
+        content = extract_content(content, lan)
+        # Postprocess the code to remove comments and format it
+        content = postprocess_code_lines(code, content, parser_util, lan)
+        content = remove_comments(content)
+
+        pred_ids = extract_identifiers(content, lan)
+        sol = remove_comments(sol)
+        target_ids = extract_identifiers(sol, lan)
+        reward = int(pred_ids == target_ids)
+        rewards.append(reward)
+
+    return rewards
+
+def code_smi_reward(completions: list[list[dict[str, str]]], solution: list[str], **kwargs) -> list[Optional[float]]:
+    """Reward function that checks if the completion is the same as the ground truth."""
+    contents = [completion[0]["content"] for completion in completions]
+    rewards = []
+    input_code = kwargs['input_code']
+    language = kwargs['language']
+    language_object = Language(f"build/{language[0]}-lang-parser.so", language[0])
+    parser_util = Parser()
+    parser_util.set_language(language_object)
+
+    for content, sol, code, lan in zip(contents, solution, input_code, language):
+        # Extract code from the content
+        content = extract_content(content, lan)
+        # Postprocess the code to remove comments and format it
+        content = postprocess_code_lines(code, content, parser_util, lan)
+        content = remove_comments(content)
+        sol = remove_comments(sol)
+     
+        reward = round(cal_edit_sim([sol], [content]) /100.0,2)
+        rewards.append(reward)
+
+    return rewards
+
+def get_code_format_reward(completions, **kwargs):
+    """Format reward function specifically for code responses.
+
+    Args:
+        language: Programming language supported by E2B https://e2b.dev/docs/code-interpreting/supported-languages
+    """
+    pattern = rf"^<think>\n.*?\n</think>\n<answer>\n.*?```.*?```.*?\n</answer>$"
+    completion_contents = [completion[0]["content"] for completion in completions]
+    matches = [re.match(pattern, content, re.DOTALL | re.MULTILINE) for content in completion_contents]
+    return [1.0 if match else 0.0 for match in matches]
+
+def get_context_code_format_reward(completions, **kwargs):
+    """Format reward function specifically for code responses.
+
+    Args:
+        language: Programming language supported by E2B https://e2b.dev/docs/code-interpreting/supported-languages
+    """
+    pattern = rf"^<context>\n.*?\n</context>\n<intent>\n.*?\n</intent>\n<answer>\n.*?```.*?```.*?\n</answer>$"
+    completion_contents = [completion[0]["content"] for completion in completions]
+    matches = [re.match(pattern, content, re.DOTALL | re.MULTILINE) for content in completion_contents]
+    return [1.0 if match else 0.0 for match in matches]
 
 def format_reward(completions, **kwargs):
     """Reward function that checks if the reasoning process is enclosed within <think> and </think> tags, while the final answer is enclosed within <answer> and </answer> tags."""
@@ -317,52 +375,6 @@ def get_repetition_penalty_reward(ngram_size: int, max_penalty: float):
     return repetition_penalty_reward
 
 
-def _init_event_loop():
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop
-
-
-def ioi_code_reward(completions, test_batch_size: int = 1, **kwargs) -> list[float]:
-    """Reward function that evaluates IOI problems using Piston+our IOI package.
-
-    Assumes the dataset has the same format as hf.co/datasets/open-r1/ioi
-
-    test_batch_size: evaluate these many test cases in parallel, then check if any of them failed (0 score): if so stop evaluating; otherwise continue with the next batch of test cases.
-    """
-    # for info on setting up piston workers, see slurm/piston/README.md
-    piston_client = get_piston_client_from_env()
-
-    code_snippets = [
-        # note: grading is automatically skipped if no code is extracted
-        add_includes(extract_code(completion[-1]["content"], "cpp"), problem_id)
-        for completion, problem_id in zip(completions, kwargs["id"])
-    ]
-
-    async def run_catch_exceptions(task):
-        try:
-            return await task
-        except Exception as e:
-            print(f"Error from Piston worker: {e}")
-            return SubtaskResult()  # score 0.0
-
-    # load problem data. undo separating kwargs by column
-    problems_data = [dict(zip(kwargs.keys(), values)) for values in zip(*kwargs.values())]
-
-    loop = _init_event_loop()
-    evals = [
-        loop.create_task(
-            run_catch_exceptions(score_subtask(piston_client, problem_data, code, test_batch_size=test_batch_size))
-        )
-        for problem_data, code in zip(problems_data, code_snippets)
-    ]
-    results = loop.run_until_complete(asyncio.gather(*evals))
-
-    return [result.score for result in results]
-
 
 def extract_code(completion: str, language: str = "python") -> str:
     pattern = re.compile(rf"```{language}\n(.*?)```", re.DOTALL)
@@ -373,84 +385,14 @@ def extract_code(completion: str, language: str = "python") -> str:
 
 
 
-def get_code_format_reward(language: str = "python"):
-    """Format reward function specifically for code responses.
-
-    Args:
-        language: Programming language supported by E2B https://e2b.dev/docs/code-interpreting/supported-languages
-    """
-    pattern = rf"^<think>\n.*?\n</think>\n<answer>\n.*?```{language}.*?```.*?\n</answer>$"
-
-    def code_format_reward(completions, **kwargs):
-        completion_contents = [completion[0]["content"] for completion in completions]
-        matches = [re.match(pattern, content, re.DOTALL | re.MULTILINE) for content in completion_contents]
-        return [1.0 if match else 0.0 for match in matches]
-
-    return code_format_reward
-
-
-def run_async_from_sync(scripts: list[str], language: str, num_parallel: int) -> list[float]:
-    """Function wrapping the `run_async` function."""
-    # Create a new event loop and set it
-    try:
-        # Run the async function and get the result
-        rewards = asyncio.run(run_async(scripts, language, num_parallel))
-    except Exception as e:
-        print(f"Error from E2B executor async: {e}")
-        raise e
-
-    return rewards
-
-
-async def run_async(scripts: list[str], language: str, num_parallel: int) -> list[float]:
-    # Limit the number of concurrent tasks
-    semaphore = asyncio.Semaphore(num_parallel)
-
-    # Create a list of tasks for running scripts concurrently
-    tasks = [run_script(script, language, semaphore) for script in scripts]
-
-    # Wait for all tasks to complete and gather their results as they finish
-    results = await asyncio.gather(*tasks)
-    rewards = list(results)  # collect results
-
-    return rewards
-
-
-async def run_script(script: str, language: str, semaphore: asyncio.Semaphore) -> float:
-    # We set a timeout margin, as the AsyncSandbox timeout does not seem to work
-    # These values are based on running 256 examples with the gold solution
-    # from open-r1/verifiable-coding-problems-python_decontaminated
-    # see scripts/benchmark_e2b.py
-
-    SANDBOX_TIMEOUT = 30
-    MARGIN = 2
-    REQUEST_TIMEOUT = SANDBOX_TIMEOUT - MARGIN
-    ASYNCIO_TIMEOUT = SANDBOX_TIMEOUT + MARGIN
-
-    async with semaphore:
-        try:
-            sandbox = await AsyncSandbox.create(timeout=SANDBOX_TIMEOUT, request_timeout=REQUEST_TIMEOUT)
-            execution = await asyncio.wait_for(sandbox.run_code(script, language=language), timeout=ASYNCIO_TIMEOUT)
-            return float(execution.text)
-        except (TypeError, ValueError):
-            return 0.0
-        except asyncio.TimeoutError:
-            print("Operation timed out")
-            return 0.0
-        except Exception as e:
-            print(f"Error in `run_script` from E2B sandbox ID {sandbox.sandbox_id} : {e}")
-            return 0.0
-        finally:
-            try:
-                await sandbox.kill()
-            except Exception as e:
-                print(f"Error from E2B executor kill with sandbox ID {sandbox.sandbox_id} : {e}")
-
-
 def get_reward_funcs(script_args) -> list[Callable]:
     REWARD_FUNCS_REGISTRY = {
-        "accuracy": accuracy_reward,
+        "accuracy": accuracy_code_reward,
+        "code_identifiers": code_identifiers_reward,
+        "code_similarity": code_smi_reward,
         "format": format_reward,
+        "context_format": get_context_code_format_reward,
+        "code_format": get_code_format_reward,
         "reasoning_steps": reasoning_steps_reward,
         "cosine": get_cosine_scaled_reward(
             min_value_wrong=script_args.cosine_min_value_wrong,
@@ -464,7 +406,6 @@ def get_reward_funcs(script_args) -> list[Callable]:
             max_penalty=script_args.repetition_max_penalty,
         ),
         "length": len_reward,
-        "code_format": get_code_format_reward(language=script_args.code_language),
         "tag_count": tag_count_reward,
     }
     reward_funcs = [REWARD_FUNCS_REGISTRY[func] for func in script_args.reward_funcs]

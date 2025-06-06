@@ -7,7 +7,7 @@ use_peft: true
 # Data training arguments
 dataset_name: /data/dzl/RL_project/RepoCompletion/datasets/repobench/python
 dataset_prompt_column: prompt
-dataset_completion_column: completion
+dataset_completion_column: solution
 system_prompt: "You are a helpful assistant tasked with completing the next line of a repository-level code file.  You are provided with an incomplete code file, and other code snippets from the same repository are provided as comments above the code.  You should provide the user with the next line of the incomplete code. Please respond in the following format: <answer>\n```...```\n</answer>"
 
 # SFT trainer config

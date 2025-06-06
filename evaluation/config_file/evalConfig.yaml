@@ -1,0 +1,25 @@
+# Model configuration
+models_dir: ""  
+output_dir: ""  
+# Dataset configuration
+eval_dataset_name: "repobench"  
+language: "java"
+# Distributed configuration
+# Generation parameters (will override inference_config)
+generation_params:
+  cuda_visible_devices: "4,5"
+  inference_config: "None"
+  dev_data_path_dir: "datasets/repobench/java"
+  test_data_path_dir: "None"
+  model_path: "/data/dzl/package/CodeLLM/Qwen2.5-Coder-7B-Instruct"
+  dtype: "float16"
+  gpu_memory_utilization: 0.7
+  temperature: 0.7
+  dp_size: 2
+  tp_size: 1
+  use_lora: false
+  lora_path: ""
+
+
+# Other configuration
+ts_lib: "build/java-lang-parser.so"

@@ -79,6 +79,16 @@ def calculate_results(detailed_results):
     id_f1 = round(
         sum(detailed_results[idx]['id_f1'] for idx in range(len(detailed_results))) / len(detailed_results) * 100, 2)
 
+    #把结果放到一个json对象中返回
+    results = {
+        "em_ratio": em_ratio,
+        "edit_sim": edit_sim,
+        "id_em_ratio": id_em_ratio,
+        "id_precision": id_precision,
+        "id_recall": id_recall,
+        "id_f1": id_f1
+    }
+
     print(
         f"Code Matching: "
         f"EM {em_ratio:.2f}, "
@@ -92,9 +102,10 @@ def calculate_results(detailed_results):
         f"Recall {id_recall}, "
         f"F1 {id_f1}"
     )
+    return results
 
 def compute_metric(args):
-    groundtruth = load_ground_truth(args.eval_dataset_name, args.data_dir_path)
+    groundtruth = load_ground_truth(args.eval_dataset_name, args.data_dir_path, args.eval_mode)
     prediction_list = load_list_from_json(args.prediction_file)
     groundtruth_map = {}
     for ex in groundtruth:
@@ -186,6 +197,10 @@ def main():
                         type=str,
                         default="build/java-lang-parser.so",
                         help="Tree-sitter library path")
+    parser.add_argument("--eval_mode",
+                        type=str,
+                        default="test",
+                        )
     args = parser.parse_args()
 
     output_results(args)

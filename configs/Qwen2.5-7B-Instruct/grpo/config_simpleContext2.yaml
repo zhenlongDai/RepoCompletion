@@ -12,8 +12,9 @@ dataset_prompt_column: prompt
 dataset_completion_column: solution
 system_prompt: "You are a helpful assistant tasked with completing the next line of a repository-level code file.
  You are provided with an incomplete code file, and other code snippets from the same repository are provided as comments above the code.  
- You first think about the reasoning process as an internal monologue and then provide the user with the next line of the incomplete code. 
- Please respond in the following format: <think>\n...\n</think>\n<answer>\n```...```\n</answer>"
+ You first think about the reasoning process as an internal monologue, which includes analyzing the incomplete code in the context of related snippets to infer the user’s intent and determine how to complete the next line. Then You should provide the user with the next line of the incomplete code. 
+ The reasoning process of analyzing the incomplete code in the context of related snippets should be enclosed within <context> and </context> tags. The user’s intent should be enclosed within <intent> and </intent> tags, while the final answer should be enclosed within <answer> and </answer> tags.
+ Please respond in the following format: <context>\n...\n</context>\n<intent>\n...\n</intent>\n<answer>\n```...```\n</answer>"
 # system_prompt: "You first think about the reasoning process as an internal monologue and then provide the user with the answer. 
 #  Respond in the following format: <think>\n...\n</think>\n<answer>\n...\n</answer>"
 
@@ -24,9 +25,10 @@ do_eval: false
 eval_strategy: "no"
 use_vllm: true
 vllm_gpu_memory_utilization: 0.7
-vllm_server_port: 8000
+vllm_server_port: 8300
+group_port: 52216
 do_eval: false
-gradient_accumulation_steps: 16
+gradient_accumulation_steps: 8
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
@@ -45,19 +47,17 @@ max_completion_length: 2048
 max_steps: -1
 num_generations: 6
 num_train_epochs: 4
-output_dir: weights/java/Qwen2.5-7B-Instruct-CodeI2EM
+output_dir: weights/java/Qwen2.5-7B-Instruct-context_intent_EM
 overwrite_output_dir: true
-per_device_train_batch_size: 4
+per_device_train_batch_size: 8
 push_to_hub: false
 wandb_project: R1
 report_to:
 - wandb
 reward_funcs:
 - accuracy
-- code_identifiers
-- code_format
+- context_format
 reward_weights:
-- 1.0
 - 1.0
 - 0.2
 save_strategy: "steps"

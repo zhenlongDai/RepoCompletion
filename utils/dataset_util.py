@@ -8,15 +8,22 @@ import json
 from datasets import  Dataset, DatasetDict
 from transformers import BertTokenizer
 
-def load_json_as_hf_dataset(json_file_path):
+def load_json_as_hf_dataset(json_file_path, language=None, debug_mode=False):
     data_list = load_list_from_json(json_file_path)
     # 转换格式
     processed_data = []
     for row in data_list:
+        input_code = row['import_statement'] + "\n" + row['code']
         processed_data.append({
+            "language": language,
+            "input_code": input_code,
             "prompt": row["prompt"],
-            "completion": f"<answer>```\n{row['next_line']}\n```</answer>",
+            "solution": row['next_line'],
+            "labels": row['next_line']
         })
+    # 如果是调试模式，只取前10条数据
+    if debug_mode:
+        processed_data = processed_data[:10]
     # 用 HuggingFace Dataset 构建
     return Dataset.from_list(processed_data)
     
@@ -106,7 +113,7 @@ def construct_prompt(
 
     return prompt
 
-def construct_model_prompt(data, language, tokenizer, max_input_tokens, system_prompt, without_context = False):
+def construct_model_prompt(data, language, tokenizer, max_input_tokens, system_prompt, without_context = False, eval_mode=None):
     """
         ```maybe_apply_chat_template
         >>> from transformers import AutoTokenizer
@@ -120,13 +127,22 @@ def construct_model_prompt(data, language, tokenizer, max_input_tokens, system_p
         ```
     """
     example = {}
-    example['prompt'] = construct_prompt(data, language, tokenizer, code_column_name = "cropped_code", max_token_nums = max_input_tokens, without_context= without_context) #constrcut input of a specific task
+    if eval_mode == "test":
+        example['prompt'] = construct_prompt(data, language, tokenizer, code_column_name = "cropped_code", max_token_nums = max_input_tokens, without_context= without_context) #constrcut input of a specific task
+    elif eval_mode == "dev":
+        example['prompt'] = data['prompt'] # pass
     example['prompt'] = f"```\n{ example['prompt']}\n```"
     example = make_conversation(example, system_prompt) #constrcut conversation based on input
     model_prompt = maybe_apply_chat_template(example, tokenizer)["prompt"]  # construct input of model
     return model_prompt
 
-def load_eval_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode, without_context = False):
+def load_eval_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode, without_context = False, eval_mode="test"):
+    if eval_mode == "test":
+        return load_test_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode, without_context)
+    elif eval_mode == "dev":
+        return load_dev_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode)
+    
+def load_test_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode, without_context = False):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     data_list = []
 
@@ -139,7 +155,7 @@ def load_eval_dataset(system_prompt, eval_dataset_name, data_dir_path, language,
             data_num = len(data_list)
             for idx, data in enumerate(ori_data_list):
                 temp_data = {}
-                temp_data['prompt'] = construct_model_prompt(data, language, tokenizer, max_input_tokens, system_prompt, without_context = without_context)
+                temp_data['prompt'] = construct_model_prompt(data, language, tokenizer, max_input_tokens, system_prompt, without_context = without_context, eval_mode="test")
                 temp_data['tag'] = tag_name
                 temp_data['id'] = idx + data_num
                 temp_data['ground_truth'] = data['next_line']
@@ -148,28 +164,62 @@ def load_eval_dataset(system_prompt, eval_dataset_name, data_dir_path, language,
     #input()
     return data_list if not debug_mode else data_list[:10]
 
-def load_ground_truth(eval_dataset_name, data_dir_path, code_column_name="cropped_code"): 
+
+
+def load_dev_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode):
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
     data_list = []
-    if eval_dataset_name == "repobench":
-        file_name2tag_map = {"cross_file_first":"cff", "cross_file_random":"cfr", "in_file":"if"} 
-        for file_name, tag_name in file_name2tag_map.items():
-            data_file_path = os.path.join(data_dir_path, f"{file_name}.json")
-            print(">>> start load data from data_file_path:", data_file_path)
-            ori_data_list = load_list_from_json(data_file_path)
-            data_num = len(data_list)
-            for idx, data in enumerate(ori_data_list):
-                temp_data = {}
-                temp_data['in_file_prompt'] = f"{data['import_statement']}\n{data[code_column_name]}\n"
-                temp_data['tag'] = tag_name
-                temp_data['id'] = idx + data_num
-                temp_data['ground_truth'] = data['next_line']
-                data_list.append(temp_data)
+
+    data_file_path = os.path.join(data_dir_path, "dev.json")
+    print(">>> start load data from data_file_path:", data_file_path)
+    ori_data_list = load_list_from_json(data_file_path)
+    for idx, data in enumerate(ori_data_list):
+        temp_data = {}
+        temp_data['prompt'] = construct_model_prompt(data, language, tokenizer, max_input_tokens, system_prompt, False, eval_mode="dev")
+        temp_data['tag'] = data['tag']
+        temp_data['id'] = idx
+        temp_data['ground_truth'] = data['next_line']
+        data_list.append(temp_data)
+    print("the number of data_list:", len(data_list))
+    #input()
+    return data_list if not debug_mode else data_list[:10]
+
+def load_ground_truth(eval_dataset_name, data_dir_path, eval_mode, code_column_name="cropped_code"): 
+    data_list = []
+    if eval_mode == "test":
+        if eval_dataset_name == "repobench":
+            file_name2tag_map = {"cross_file_first":"cff", "cross_file_random":"cfr", "in_file":"if"} 
+            for file_name, tag_name in file_name2tag_map.items():
+                data_file_path = os.path.join(data_dir_path, f"{file_name}.json")
+                print(">>> start load data from data_file_path:", data_file_path)
+                ori_data_list = load_list_from_json(data_file_path)
+                data_num = len(data_list)
+                for idx, data in enumerate(ori_data_list):
+                    temp_data = {}
+                    temp_data['in_file_prompt'] = f"{data['import_statement']}\n{data[code_column_name]}\n"
+                    temp_data['tag'] = tag_name
+                    temp_data['id'] = idx + data_num
+                    temp_data['ground_truth'] = data['next_line']
+                    data_list.append(temp_data)
+
+    elif eval_mode == "dev":
+        data_file_path = os.path.join(data_dir_path, f"{eval_mode}.json")
+        print(">>> start load data from data_file_path:", data_file_path)
+        ori_data_list = load_list_from_json(data_file_path)
+        for idx, data in enumerate(ori_data_list):
+            temp_data = {}
+            temp_data['in_file_prompt'] = data['prompt']
+            temp_data['tag'] = data['tag']
+            temp_data['id'] = idx
+            temp_data['ground_truth'] = data['next_line']
+            data_list.append(temp_data)
+
     print("the number of data_list:", len(data_list))
 
     return data_list 
 
 
-def load_compeltion_dataset(dataset_file_path):
+def load_compeltion_dataset(dataset_file_path, language=None, debug_mode=False):
     """
     Load the dataset from the given file path.
     
@@ -183,15 +233,15 @@ def load_compeltion_dataset(dataset_file_path):
         raise FileNotFoundError(f"Dataset file not found at {dataset_file_path}")
     train_file_path = os.path.join(dataset_file_path, "train.json")
     dev_file_path = os.path.join(dataset_file_path, "dev.json")
-    train_dataset = load_json_as_hf_dataset(train_file_path)
-    dev_dataset = load_json_as_hf_dataset(dev_file_path)
+    train_dataset = load_json_as_hf_dataset(train_file_path, language)
+    dev_dataset = load_json_as_hf_dataset(dev_file_path, language, debug_mode=debug_mode)
     dataset = DatasetDict({
         "train": train_dataset,
         "test": dev_dataset
     })
         
     # Ensure the dataset has the required columns
-    if "prompt" not in dataset["train"].column_names or "completion" not in dataset["train"].column_names:
-        raise ValueError("Dataset must contain 'prompt' and 'completion' columns.")
+    if "prompt" not in dataset["train"].column_names or "solution" not in dataset["train"].column_names:
+        raise ValueError("Dataset must contain 'prompt' and 'solution' columns.")
     
     return dataset

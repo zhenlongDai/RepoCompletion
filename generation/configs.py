@@ -24,6 +24,7 @@ class InferenceConfig:
     use_lora: bool = False
     lora_path: str = ""
     without_context: bool = False
+    eval_mode: str = "test"
     
 def load_config(config_path: str) -> InferenceConfig:
     """从 YAML 文件加载配置并返回 InferenceConfig 实例"""
