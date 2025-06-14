@@ -25,7 +25,8 @@ class InferenceConfig:
     lora_path: str = ""
     without_context: bool = False
     eval_mode: str = "test"
-    
+    prompt_mode: str = "split"
+
 def load_config(config_path: str) -> InferenceConfig:
     """从 YAML 文件加载配置并返回 InferenceConfig 实例"""
     with open(config_path, 'r') as file:

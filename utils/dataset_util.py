@@ -7,19 +7,20 @@ from utils.code_util import comment_out
 import json
 from datasets import  Dataset, DatasetDict
 from transformers import BertTokenizer
+from utils.eval_utils import uncomment_code
 
-def load_json_as_hf_dataset(json_file_path, language=None, debug_mode=False):
+def load_json_as_hf_dataset(json_file_path, language=None, prompt_mode="split", eval_mode = "train", debug_mode=False):
     data_list = load_list_from_json(json_file_path)
     # 转换格式
     processed_data = []
-    for row in data_list:
-        input_code = row['import_statement'] + "\n" + row['code']
+    for data in data_list:
+        input_code = data['import_statement'] + "\n" + data['code']
         processed_data.append({
             "language": language,
             "input_code": input_code,
-            "prompt": row["prompt"],
-            "solution": row['next_line'],
-            "labels": row['next_line']
+            "prompt": construct_task_prompt(data = data, language = language, prompt_mode = prompt_mode),
+            "solution": data['next_line'],
+            "labels": data['next_line']
         })
     # 如果是调试模式，只取前10条数据
     if debug_mode:
@@ -50,7 +51,55 @@ def make_conversation(example, system_prompt):
     prompt.append({"role": "user", "content": example["prompt"]})
     return {"prompt": prompt}
 
-def construct_prompt(
+def construct_test_prompt( data: dict, 
+    language: str = "java",
+    tokenizer= None,
+    code_column_name = "cropped_code",
+    max_token_nums: int = 15800,
+    without_context: bool = False,
+    prompt_mode = "split"
+    ) -> str:
+    if prompt_mode == "comment":
+        return construct_comment_prompt(data, language, tokenizer, code_column_name, max_token_nums, without_context)
+    elif prompt_mode == "split":
+        return construct_split_prompt(data, language, tokenizer, code_column_name, max_token_nums, without_context)
+    
+def construct_split_prompt(
+    data: dict, 
+    language: str = "java",
+    tokenizer= None,
+    code_column_name = "cropped_code",
+    max_token_nums: int = 15800,
+    without_context: bool = False
+    ) -> str:
+    """
+    Construct the prompt for next line prediction.
+
+    :param data: data point from the dataset
+    :param language: the language of the code
+    :param tokenizer: the tokenizer of the evaluation model
+    :param max_token_nums: the maximum number of tokens constraint for the prompt
+
+    :return: the constructed prompt
+    """
+
+     # construct the prompt with split snippets
+    if isinstance(data['context'], str):
+        context_list = split_snippets(data['context'], language)
+    else:
+        context_list = data['context']
+    prompt = f"Repository name: {data['repo_name']}\n"
+    if without_context is False:
+        # add the context snippets to the prompt
+        prompt += f"Code snippets:\n"
+        for snippet in context_list:
+            prompt += f"Path: {snippet['path']}\n```\n{snippet['snippet']}\n```\n"
+    prompt += f"The incomplete code:\n"
+    prompt += f"Path: {data['file_path']}\n```\n{data['import_statement']}\n{data[code_column_name]}\n```"
+
+    return prompt
+  
+def construct_comment_prompt(
     data: dict, 
     language: str = "java",
     tokenizer= None,
@@ -113,7 +162,54 @@ def construct_prompt(
 
     return prompt
 
-def construct_model_prompt(data, language, tokenizer, max_input_tokens, system_prompt, without_context = False, eval_mode=None):
+def split_snippets(snippets_str, language):
+    # each snippet is "// Path: xxxx\n{code_snippet}// Path: xxxx\n{code_snippet}..." 的结构
+    # 返回 [{"path": path, "snippet": snippet}, ...]
+    snippets = []
+
+    snippets_str = uncomment_code(snippets_str, language)
+    snippet_list = snippets_str.split("Path: ")
+    for snippet in snippet_list:
+        snippet = snippet.rstrip()
+        if snippet:
+            # 取 path（第一行）和 snippet（剩余内容）
+            lines = snippet.split('\n', 1)
+            path = lines[0].rstrip()
+            code = lines[1].rstrip() if len(lines) > 1 else ""
+            snippets.append({"path": path, "snippet": code})
+    return snippets
+
+def construct_task_prompt(data, language, prompt_mode = "comment"):
+    """
+    Construct the task prompt for next line prediction.
+
+    :param data: data point from the dataset
+    :param prompt_mode: the mode of the prompt, can be "comment" or "split"
+    :return: the constructed task prompt
+    """
+    if prompt_mode == "comment":
+        # construct the prompt with comments
+        prompt = data['prompt']
+        prompt = f"```\n{ data['prompt']}\n```"
+    elif prompt_mode == "split":
+        
+        # construct the prompt with split snippets
+        if isinstance(data['context'], str):
+            context_list = split_snippets(data['context'], language)
+        else:
+            context_list = data['context']
+        prompt = f"Repository name: {data['repo_name']}\n"
+        prompt += f"Code snippets:\n"
+        for snippet in context_list:
+            prompt += f"Path: {snippet['path']}\n```\n{snippet['snippet']}\n```\n"
+        prompt += f"The incomplete code:\n"
+        prompt += f"Path: {data['file_path']}\n```\n{data['import_statement']}\n{data['code']}\n```"
+    else:
+        raise ValueError(f"Unknown prompt mode: {prompt_mode}")
+    
+    return prompt
+
+def construct_model_prompt(data, language, tokenizer = None, max_input_tokens = None, system_prompt = "", without_context = False, eval_mode=None, prompt_mode = "split"):
     """
         ```maybe_apply_chat_template
         >>> from transformers import AutoTokenizer
@@ -128,21 +224,22 @@ def construct_model_prompt(data, language, tokenizer, max_input_tokens, system_p
     """
     example = {}
     if eval_mode == "test":
-        example['prompt'] = construct_prompt(data, language, tokenizer, code_column_name = "cropped_code", max_token_nums = max_input_tokens, without_context= without_context) #constrcut input of a specific task
-    elif eval_mode == "dev":
-        example['prompt'] = data['prompt'] # pass
-    example['prompt'] = f"```\n{ example['prompt']}\n```"
+        example['prompt'] = construct_test_prompt(data, language, tokenizer, "cropped_code", max_input_tokens, without_context, prompt_mode) #constrcut input of a specific task
+        example['prompt'] = f"```\n{ example['prompt']}\n```"
+    elif eval_mode == "train" or eval_mode == "dev":
+        example['prompt'] = construct_task_prompt(data, language, prompt_mode) # pass
+   
     example = make_conversation(example, system_prompt) #constrcut conversation based on input
     model_prompt = maybe_apply_chat_template(example, tokenizer)["prompt"]  # construct input of model
     return model_prompt
 
-def load_eval_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode, without_context = False, eval_mode="test"):
+def load_eval_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode, without_context = False, eval_mode="test", prompt_mode = "split"):
     if eval_mode == "test":
-        return load_test_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode, without_context)
+        return load_test_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, prompt_mode, debug_mode, without_context)
     elif eval_mode == "dev":
-        return load_dev_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode)
+        return load_dev_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens,  prompt_mode, debug_mode)
     
-def load_test_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode, without_context = False):
+def load_test_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, prompt_mode, debug_mode, without_context = False):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     data_list = []
 
@@ -155,7 +252,7 @@ def load_test_dataset(system_prompt, eval_dataset_name, data_dir_path, language,
             data_num = len(data_list)
             for idx, data in enumerate(ori_data_list):
                 temp_data = {}
-                temp_data['prompt'] = construct_model_prompt(data, language, tokenizer, max_input_tokens, system_prompt, without_context = without_context, eval_mode="test")
+                temp_data['prompt'] = construct_model_prompt(data, language, tokenizer, max_input_tokens, system_prompt, without_context, "test", prompt_mode)
                 temp_data['tag'] = tag_name
                 temp_data['id'] = idx + data_num
                 temp_data['ground_truth'] = data['next_line']
@@ -164,9 +261,7 @@ def load_test_dataset(system_prompt, eval_dataset_name, data_dir_path, language,
     #input()
     return data_list if not debug_mode else data_list[:10]
 
-
-
-def load_dev_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode):
+def load_dev_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, prompt_mode, debug_mode):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     data_list = []
 
@@ -175,7 +270,7 @@ def load_dev_dataset(system_prompt, eval_dataset_name, data_dir_path, language, 
     ori_data_list = load_list_from_json(data_file_path)
     for idx, data in enumerate(ori_data_list):
         temp_data = {}
-        temp_data['prompt'] = construct_model_prompt(data, language, tokenizer, max_input_tokens, system_prompt, False, eval_mode="dev")
+        temp_data['prompt'] = construct_model_prompt(data, language, tokenizer, max_input_tokens, system_prompt, False, eval_mode="dev", prompt_mode = prompt_mode)
         temp_data['tag'] = data['tag']
         temp_data['id'] = idx
         temp_data['ground_truth'] = data['next_line']
@@ -219,7 +314,7 @@ def load_ground_truth(eval_dataset_name, data_dir_path, eval_mode, code_column_n
     return data_list 
 
 
-def load_compeltion_dataset(dataset_file_path, language=None, debug_mode=False):
+def load_compeltion_dataset(dataset_file_path, language=None, prompt_mode ="split", debug_mode=False):
     """
     Load the dataset from the given file path.
     
@@ -233,8 +328,8 @@ def load_compeltion_dataset(dataset_file_path, language=None, debug_mode=False):
         raise FileNotFoundError(f"Dataset file not found at {dataset_file_path}")
     train_file_path = os.path.join(dataset_file_path, "train.json")
     dev_file_path = os.path.join(dataset_file_path, "dev.json")
-    train_dataset = load_json_as_hf_dataset(train_file_path, language)
-    dev_dataset = load_json_as_hf_dataset(dev_file_path, language, debug_mode=debug_mode)
+    train_dataset = load_json_as_hf_dataset(train_file_path, language, prompt_mode, "train")
+    dev_dataset = load_json_as_hf_dataset(dev_file_path, language, prompt_mode, "dev")
     dataset = DatasetDict({
         "train": train_dataset,
         "test": dev_dataset
@@ -245,3 +340,24 @@ def load_compeltion_dataset(dataset_file_path, language=None, debug_mode=False):
         raise ValueError("Dataset must contain 'prompt' and 'solution' columns.")
     
     return dataset
+
+
+if __name__ == "__main__":
+    context = "// Path: query/src/main/java/io/keen/client/java/exceptions/KeenQueryClientException.java\n// public class KeenQueryClientException extends KeenException {\n//     private static final long serialVersionUID = -8714276738565293346L;\n// \n//     public KeenQueryClientException() {\n//         super();\n//     }\n// \n//     public KeenQueryClientException(Throwable cause) {\n//         super(cause);\n//     }\n// \n//     public KeenQueryClientException(String message) {\n//         super(message);\n//     }\n// \n//     public KeenQueryClientException(String message, Throwable cause) {\n//         super(message, cause);\n//     }\n// }\n// \n// Path: core/src/main/java/io/keen/client/java/http/HttpMethods.java\n// public final class HttpMethods {\n//     private HttpMethods() {}\n// \n//     public final static String GET = \"GET\";\n//     public final static String POST = \"POST\";\n//     public final static String PUT = \"PUT\";\n//     public final static String DELETE = \"DELETE\";\n// }\n\n"
+
+    code = split_snippets(context,  "java")
+    language="java"
+    prompt_mode = "split_snippets"
+    data =  {
+        "repo_name": "keenlabs/KeenClient-Java",
+        "file_path": "query/src/main/java/io/keen/client/java/KeenQueryRequest.java",
+        "context": "// Path: query/src/main/java/io/keen/client/java/exceptions/KeenQueryClientException.java\n// public class KeenQueryClientException extends KeenException {\n//     private static final long serialVersionUID = -8714276738565293346L;\n// \n//     public KeenQueryClientException() {\n//         super();\n//     }\n// \n//     public KeenQueryClientException(Throwable cause) {\n//         super(cause);\n//     }\n// \n//     public KeenQueryClientException(String message) {\n//         super(message);\n//     }\n// \n//     public KeenQueryClientException(String message, Throwable cause) {\n//         super(message, cause);\n//     }\n// }\n// \n// Path: core/src/main/java/io/keen/client/java/http/HttpMethods.java\n// public final class HttpMethods {\n//     private HttpMethods() {}\n// \n//     public final static String GET = \"GET\";\n//     public final static String POST = \"POST\";\n//     public final static String PUT = \"PUT\";\n//     public final static String DELETE = \"DELETE\";\n// }\n\n",
+        "import_statement": "import java.net.URL;\nimport java.util.Collection;\nimport java.util.Map;\nimport io.keen.client.java.exceptions.KeenQueryClientException;\nimport io.keen.client.java.http.HttpMethods;",
+        "code": "package io.keen.client.java;\n\n\n\n/**\n * Interface to be implemented by a query request\n *\n * @author baumatron\n */\nabstract class KeenQueryRequest {\n    abstract URL getRequestURL(RequestUrlBuilder urlBuilder, String projectId)\n            throws KeenQueryClientException;\n\n    // By default, we POST to get most of our query results.\n    String getHttpMethod() {",
+        "prompt": "// Path: query/src/main/java/io/keen/client/java/exceptions/KeenQueryClientException.java\n// public class KeenQueryClientException extends KeenException {\n//     private static final long serialVersionUID = -8714276738565293346L;\n// \n//     public KeenQueryClientException() {\n//         super();\n//     }\n// \n//     public KeenQueryClientException(Throwable cause) {\n//         super(cause);\n//     }\n// \n//     public KeenQueryClientException(String message) {\n//         super(message);\n//     }\n// \n//     public KeenQueryClientException(String message, Throwable cause) {\n//         super(message, cause);\n//     }\n// }\n// \n// Path: core/src/main/java/io/keen/client/java/http/HttpMethods.java\n// public final class HttpMethods {\n//     private HttpMethods() {}\n// \n//     public final static String GET = \"GET\";\n//     public final static String POST = \"POST\";\n//     public final static String PUT = \"PUT\";\n//     public final static String DELETE = \"DELETE\";\n// }\n\n\n// Path: query/src/main/java/io/keen/client/java/KeenQueryRequest.java\nimport java.net.URL;\nimport java.util.Collection;\nimport java.util.Map;\nimport io.keen.client.java.exceptions.KeenQueryClientException;\nimport io.keen.client.java.http.HttpMethods;\n\npackage io.keen.client.java;\n\n\n\n/**\n * Interface to be implemented by a query request\n *\n * @author baumatron\n */\nabstract class KeenQueryRequest {\n    abstract URL getRequestURL(RequestUrlBuilder urlBuilder, String projectId)\n            throws KeenQueryClientException;\n\n    // By default, we POST to get most of our query results.\n    String getHttpMethod() {",
+        "next_line": "        return HttpMethods.POST;",
+        "prompt_tokens": 379,
+        "tag": "java_cff"
+    }
+    code2 = construct_task_prompt(data, language, prompt_mode) 
+    print(code2)

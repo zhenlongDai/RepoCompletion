@@ -20,13 +20,13 @@
 # export https_proxy=http://192.168.1.52:7891
 # export HTTP_PROXY=http://192.168.1.52:7891
 # export HTTPS_PROXY=http://192.168.1.52:7891
-export CUDA_VISIBLE_DEVICES=5,6
+export CUDA_VISIBLE_DEVICES=5,7
 export WANDB_CONSOLE=off
 export RICH_DISABLE=1
 export WANDB_MODE=offline
 #export NCCL_P2P_DISABLE=1
 #export NCCL_IB_DISABLE=1
 accelerate launch --main_process_port 29400 --num_processes 2 --config_file configs/accelerate_configs/zero2.yaml train/grpo.py \
-    --config configs/Qwen2.5-7B-Instruct/grpo/config_focusContextDetail.yaml
+    --config configs/Qwen2.5-7B-Instruct/grpo/config_NewFormatDetail2.yaml
 # 如果第二个服务退出，自动kill第一个
 #kill $SERVE_PID

@@ -92,7 +92,8 @@ class ModelEvaluationPipeline:
         base_config.data_path_dir = os.path.join(self.config.get(f'{eval_mode}_data_path_dir')) #错误已经没有这个参数了
         base_config.language = self.config.get('language')
         base_config.debug_mode = self.config.get('debug_mode')
-        
+        base_config.prompt_mode = self.config.get('prompt_mode')
+
         # 根据模式设置不同的数据集
         base_config.eval_dataset_name = self.config.get('eval_dataset_name')
             
@@ -138,7 +139,8 @@ class ModelEvaluationPipeline:
                 "--data_path_dir", generation_params.get(f'{eval_mode}_data_path_dir'),
                 "--save_file_path", str(output_file),
                 "--language",  self.config.get('language'),
-                "--eval_mode", eval_mode
+                "--eval_mode", eval_mode,
+                "--prompt_mode", self.config.get('prompt_mode')
             ]
 
             # 添加模型相关参数
@@ -206,6 +208,7 @@ class ModelEvaluationPipeline:
                 self.ts_lib = config.get('ts_lib')
                 self.eval_dataset_name = config.get('eval_dataset_name')
                 self.eval_mode = eval_mode
+                self.prompt_mode = config.get('prompt_mode')
         eval_args = EvalArgs()
         return eval_args
             
@@ -247,8 +250,8 @@ class ModelEvaluationPipeline:
             
         # 定义评估指标权重
         weights = self.config.get('metric_weights', {
-            'em_ratio': 1.0,
-            'edit_sim': 0.0, 
+            'em_ratio': 0.0,
+            'edit_sim': 1.0, 
             'id_f1': 0.0,
             'id_precision': 0.0,
             'id_recall': 0.0

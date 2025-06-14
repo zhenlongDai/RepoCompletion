@@ -4,10 +4,11 @@ output_dir: ""
 # Dataset configuration
 eval_dataset_name: "repobench"  
 language: "java"
+prompt_mode: "split"  # Options: "split", "comment"
 # Distributed configuration
 # Generation parameters (will override inference_config)
 generation_params:
-  cuda_visible_devices: "4,5"
+  cuda_visible_devices: "1,3"
   inference_config: "None"
   dev_data_path_dir: "datasets/repobench/java"
   test_data_path_dir: "None"

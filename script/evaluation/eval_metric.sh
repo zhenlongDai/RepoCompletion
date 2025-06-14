@@ -1,7 +1,7 @@
 language="java"
 eval_dataset_name="repobench"
-without_context=true
-model_name="Qwen2.5-Coder-7B-Instruct-GRPO"
+without_context=false
+model_name="Qwen2.5-Coder-7B-Instruct-EM-2"
 eval_mode="test"
 #如果without_context为true，则不使用上下文，prediction_file的路径需要修改
 if [ "$without_context" = true ]; then
@@ -9,7 +9,7 @@ if [ "$without_context" = true ]; then
 else
     prediction_file="./output_dir/generation/$eval_dataset_name/$language/$model_name.json"
 fi
-prediction_file="/data/dzl/RL_project/RepoCompletion/output_dir/dev_evaluation/Qwen2.5-7B-Instruct-ES/results/checkpoint-574_generation.json"
+#prediction_file="/data/dzl/RL_project/RepoCompletion/output_dir/dev_evaluation/Qwen2.5-7B-Instruct-ES/results/checkpoint-574_generation.json"
 python -m evaluation.eval_metric \
     --eval_dataset_name "$eval_dataset_name" \
     --language "$language" \

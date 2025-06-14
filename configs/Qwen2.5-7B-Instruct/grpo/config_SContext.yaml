@@ -7,13 +7,19 @@ use_peft: true
 
 # Data training arguments
 language: java
+prompt_mode: split # prompt_mode: comment
 dataset_name: /data/dzl/RL_project/RepoCompletion/datasets/repobench/java
 dataset_prompt_column: prompt
 dataset_completion_column: solution
 system_prompt: "You are a helpful assistant tasked with completing the next line of a repository-level code file.
- You are provided with an incomplete code file, and other code snippets from the same repository are provided as comments above the code.  
- You first think about the reasoning process as an internal monologue, which includes analyzing the context of all code snippets in the comments one by one, inferring the user's intent for completion based on previous analysis of code snippets in the comments and the incomplete code. Then, you should provide the user with the next line of the incomplete code. 
- The reasoning process of analyzing the context of all code snippets in the comments should be enclosed within <context> and </context> tags. The user's intent should be enclosed within <intent> and </intent> tags, while the final answer should be enclosed within <answer> and </answer> tags.
+ You are provided with an incomplete code file and other code snippets from the same repository.  
+ You first think about the reasoning process as an internal monologue, which includes analyzing all code snippets one by one, 
+ focusing on their structure, logic, key variables, functions, and control flows. 
+ You should pay attention to any dependencies between the incomplete code and the provided snippets, and consider how each snippet influences the overall behavior of the program. 
+ You should also infer the user's intent for completion based on your analysis of the code snippets and the incomplete code in the reasoning process. 
+ Then, you should provide the user with the next line of the incomplete code. 
+ The reasoning process of analyzing all code snippets should be enclosed within <context> and </context> tags. 
+ The reasoning process of user's intent should be enclosed within <intent> and </intent> tags, while the final answer should be enclosed within <answer> and </answer> tags.
  Please respond in the following format: <context>\n...\n</context>\n<intent>\n...\n</intent>\n<answer>\n```...```\n</answer>"
 # system_prompt: "You first think about the reasoning process as an internal monologue and then provide the user with the answer. 
 #  Respond in the following format: <think>\n...\n</think>\n<answer>\n...\n</answer>"
@@ -26,9 +32,9 @@ eval_strategy: "no"
 use_vllm: true
 vllm_gpu_memory_utilization: 0.7
 vllm_server_port: 8000
-group_port: 53216
+group_port: 51216
 do_eval: false
-gradient_accumulation_steps: 16
+gradient_accumulation_steps: 8
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
@@ -42,27 +48,27 @@ logging_steps: 1
 logging_strategy: steps
 lr_scheduler_type: constant_with_warmup
 max_grad_norm: 0.2
-max_prompt_length: 2048
+max_prompt_length: 3000
 max_completion_length: 2048
 max_steps: -1
 num_generations: 6
-num_train_epochs: 4
-output_dir: weights/java/Qwen2.5-7B-Instruct-focusContext_EM_detail
+num_train_epochs: 1
+output_dir: weights/java/Qwen2.5-7B-Instruct-SContext_ES
 overwrite_output_dir: true
-per_device_train_batch_size: 6
+per_device_train_batch_size: 8
 push_to_hub: false
 wandb_project: R1
 report_to:
 - wandb
 reward_funcs:
-- accuracy
+- code_similarity
 - context_format
 reward_weights:
 - 1.0
 - 0.2
 save_strategy: "steps"
-save_steps: 0.05
-eval_steps: 0.05
+save_steps: 0.2
+eval_steps: 0.2
 save_total_limit: 50
 seed: 42
 temperature: 0.7

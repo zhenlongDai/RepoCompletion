@@ -119,6 +119,24 @@ def remove_comments(code):
     code = re.sub(r'//.*', '', code)
     return code
 
+def uncomment_code(code: str, language: str) -> str:
+    """
+    恢复注释内容为原始代码（去掉注释符号），支持多种语言。
+    :param code: 注释掉的代码字符串
+    :param language: 语言类型，如 'python', 'java', 'c', 'cpp', 'js'
+    :return: 去除注释符号后的代码
+    """
+    if type(code) is not str:
+        print(code)
+        input()
+    lines = code.splitlines()
+    if language.lower() == "python":
+        # 去除每行开头的 #
+        uncommented = [line[2:] if line.lstrip().startswith("#") else line for line in lines]
+    else:
+        # 去除每行开头的 // 和空格
+        uncommented = [line[2:] if line.lstrip().startswith("//") else line for line in lines]
+    return "\n".join(uncommented)
 
 def is_parse_valid(parser, code):
     def syntax_error(node):

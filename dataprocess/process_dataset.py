@@ -5,6 +5,7 @@ import argparse
 from tqdm import tqdm
 import os
 from dataprocess.process_completionBaseR_dataset import produce_completion_Base_retrieval_dataset, add_message_tag, restruct_retrieval_train_data_for_dataset
+import random
 
 def download_and_filt_2k(dataset_name = "tianyang/repobench_python_v1.1", prefix_path = "./datasets/datafile/python_datafile-2k/"):
 
@@ -39,7 +40,6 @@ def download_compeltion_dataset(dataset_name = "tianyang/repobench-c", task_name
     dataset.to_parquet(save_path)  
     print(f"Dataset saved to: {save_path}")
 
-
 def get_code_line(code_str: str):
     """
     获取代码行数
@@ -61,8 +61,6 @@ def filt_by_length(data_list, context_max_length=100, code_max_length = 30):
         if get_code_line(data['context']) <= context_max_length and get_code_line(data['code']) <= code_max_length:
             filtered_data.append(data)
     return filtered_data
-
-
 
 
 def process_train_dev_data(file_name,
@@ -89,27 +87,41 @@ def get_import_train_data_from_tag_file(language,
                                         tag_parquet_path = "./dataprocess/datafile/repobench-c/tag/",
                                         save_json_path = "./dataprocess/datafile/codeCompeletion",
                                         dataset_tag="import",
-                                        up_train_number = 1300,
-                                        up_dev_number = 50,
+                                        up_train_number = 4500,
+                                        up_dev_number = 100,
                                         ):
     file_name_list = ['cff','cfr','if']
-    token_length_nums= [512,768,1024]
+    token_length_nums= [2048]
     import_train_data_list = []
     import_dev_data_list = []
+    min_length = 600
+    max_length = 2048
     for file_name in tqdm(file_name_list, desc="processing each file"):
         parquet_path = os.path.join(tag_parquet_path, f"{language}_{file_name}_tag.parquet")
-        data_list = read_parquet_to_list(parquet_path)
+        ori_data_list = read_parquet_to_list(parquet_path)
         data_map ={ f"{token_length}": [] for token_length in token_length_nums}
         
+        data_list = []
+        for data in ori_data_list:
+            if data['prompt_tokens'] >= min_length and  data['prompt_tokens'] <= max_length:
+                data_list.append(data)
+        print(f">>> {file_name} data_list length:", len(data_list))
+        data_list = sorted(data_list, key=lambda x: x['prompt_tokens'], reverse=True)
+        print(f">>> {file_name} max token length:", data_list[0]['prompt_tokens'])
+        print(f">>> {file_name} min token length:", data_list[-1]['prompt_tokens'])
+
         for data in data_list:
             data_token_length = data['prompt_tokens']
+
             for up_token_legnth in token_length_nums:
                 if data_token_length <= up_token_legnth and len(data_map[str(up_token_legnth)]) < up_train_number + up_dev_number:
                     data_map[str(up_token_legnth)].append(data)
                     break
 
         for up_token_legnth, import_data_list in data_map.items():
-            print(f"{file_name}: up token length is {up_token_legnth}, the number of import_data_list:", len(import_data_list))
+            print(f"{file_name}: min token length: {min_length}, up token length is {up_token_legnth}, the number of import_data_list:", len(import_data_list))
+            #shuffle the data list 随机打乱random
+            random.shuffle(import_data_list)
             import_train_data_list.extend(import_data_list[:up_train_number])
             import_dev_data_list.extend(import_data_list[up_train_number:])
         
@@ -156,9 +168,8 @@ def main(args):
         for task_name in download_task_name_list:
             for split_name in download_split_names:
                     download_compeltion_dataset(dataset_name="tianyang/repobench-p",task_name=f"{task_name}/{split_name}", split_name= 'train', 
-        
                                                  prefix_path="./dataprocess/datafile/repobench_retrieval")
-        #2. process the dataset
+        # #2. process the dataset
         produce_completion_Base_retrieval_dataset(prefix_path="./dataprocess/datafile/repobench_retrieval",
                                                   retrieval_model_name=args.retrieval_model_name,
                                                   retrieval_model_path=args.retrieval_model_path)
@@ -174,8 +185,8 @@ def main(args):
         #4. spilt train/dev data
         split_names = ['cff','cfr','if']
         language_name_list=['python','java']
-        number_map = {'train':{'cff': 800, 'cfr': 300, 'if': 200},
-                        'dev':{'cff': 50, 'cfr': 50, 'if': 50}}   
+        number_map = {'train':{'cff': 1150, 'cfr': 800, 'if': 550},
+                        'dev':{'cff': 100, 'cfr': 50, 'if': 50}}   
         for language in language_name_list:
             train_data_list = []
             dev_data_list = []
@@ -184,6 +195,7 @@ def main(args):
                 prefix_path = f"./dataprocess/datafile/repobench_retrieval/top5/tag/"
                 file_path = os.path.join(prefix_path, f"{file_name}.json")
                 data_list = load_list_from_json(file_path)
+                #random.shuffle(data_list)
                 train_number = number_map['train'][split_name]
                 dev_number = number_map['dev'][split_name]
                 train_data_list.extend(data_list[:train_number])

@@ -84,10 +84,11 @@ class InferencePipeline:
         self.lora_path = args.lora_path
         self.without_context = args.without_context
         self.eval_mode = args.eval_mode
-
+        self.prompt_mode = args.prompt_mode
         print("self.dp_master_port", self.dp_master_port)
         data_list = load_eval_dataset(self.system_prompt, args.eval_dataset_name, data_path_dir, self.language, 
-                                      self.model_path, self.max_input_tokens, self.debug_mode, self.without_context, self.eval_mode)
+                                      self.model_path, self.max_input_tokens, self.debug_mode, self.without_context, 
+                                      self.eval_mode, self.prompt_mode)
         
         manager = Manager()
         self.data_list = manager.list(data_list)

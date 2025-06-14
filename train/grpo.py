@@ -122,7 +122,7 @@ def main(script_args, training_args, model_args):
     reward_funcs = get_reward_funcs(script_args)
 
     # Format into conversation
-    dataset = load_compeltion_dataset(script_args.dataset_name, script_args.language)
+    dataset = load_compeltion_dataset(script_args.dataset_name, script_args.language, script_args.prompt_mode)
 
     # Format into conversation
     def make_conversation(example, prompt_column: str = script_args.dataset_prompt_column, competion_column: str = script_args.dataset_completion_column):
@@ -139,7 +139,9 @@ def main(script_args, training_args, model_args):
         return {"prompt": prompt}
     
     dataset = dataset.map(make_conversation)
-
+    # 输出一条数据
+    if len(dataset) > 0:
+        logger.info(f"Example conversation: {dataset['train'][0]['prompt']}")
     for split in dataset:
         if "messages" in dataset[split].column_names:
             dataset[split] = dataset[split].remove_columns("messages")

@@ -411,3 +411,13 @@ def get_reward_funcs(script_args) -> list[Callable]:
     reward_funcs = [REWARD_FUNCS_REGISTRY[func] for func in script_args.reward_funcs]
 
     return reward_funcs
+
+if __name__ == "__main__":
+  # get_code_format_reward example
+    pattern = rf"^<think>\n.*?\n</think>\n<answer>\n.*?```.*?```.*?\n</answer>$"
+    completions = [[{"content": "<think>\nStep 1: Do something\n</think>\n<answer>\n```python\nprint('Hello World')\n```\n</answer>\n\n```\n```\n```\n```\n```\n```\n```\n```\n```"}]]
+    rewards = get_code_format_reward(completions)
+    print("Code Format Reward:", rewards)
+    completions = [[{"content": "<context>\nThis is a context.\n</context>\n<intent>\nWhat is the answer?\n</intent>\n<answer>\n```python\nprint('Hello World')\n```\n"}]]
+    rewards = get_code_format_reward(completions)
+    print("Context Code Format Reward:", rewards)

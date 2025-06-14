@@ -1,10 +1,10 @@
-export CUDA_VISIBLE_DEVICES=2,3
+export CUDA_VISIBLE_DEVICES=5
 model_name="Qwen2.5-Coder-7B-Instruct"
-save_name="$model_name-lora"
+save_name="$model_name-Lora-4"
 language="java"
 eval_dataset_name="repobench"
 without_context=false
-lora_path="./weights/$language/Qwen2.5-7B-Instruct-Lora-test/checkpoint-1184"
+lora_path="./weights/$language/Qwen2.5-7B-Instruct-Lora/checkpoint-475"
 #如果without_context为true，则不使用上下文，prediction_file的路径需要修改
 if [ "$without_context" = true ]; then
     save_file_path="./output_dir/generation/$eval_dataset_name/$language/without_context/$save_name.json"
@@ -19,7 +19,7 @@ cmd="python -m generation.InferencePipeline \
     --language $language \
     --save_file_path $save_file_path \
     --dtype float16 \
-    --dp_size 2 \
+    --dp_size 1 \
     --tp_size 1 \
     --gpu_memory_utilization 0.7 \
     --temperature 0.7 \

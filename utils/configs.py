@@ -141,7 +141,13 @@ class GRPOScriptArguments(trl.ScriptArguments):
             "choices": ["python",  "java"],
         },
     )
-
+    prompt_mode: str = field(
+        default="split",
+        metadata={
+            "help": "prompt_mode.",
+            "choices": ["split",  "comment"],
+        },
+    )
     reward_funcs: list[str] = field(
         default_factory=lambda: ["accuracy", "format", "tag_count"],
         metadata={

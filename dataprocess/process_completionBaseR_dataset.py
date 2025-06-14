@@ -80,7 +80,7 @@ def construct_specific_data(
     tokenizer= None,
     code_column_name = "cropped_code",
     max_token_nums: int = 15800,
-    max_snippet_tokens: int = 256,
+    max_snippet_tokens: int = 300,
     topk = 3,
     topn = 5
     ) -> str:
@@ -105,6 +105,7 @@ def construct_specific_data(
     snippet_num = 0
     new_conetxt = []
     flag = False
+    data['origin_context'] = data['context']
     for id, snippet in enumerate(data['context'][:topk]):
         #print("id", id)
         if id == data['gold_snippet_index']: 
@@ -126,12 +127,13 @@ def construct_specific_data(
         if len(new_conetxt) != 0:
             new_conetxt.pop()
         gold_snippet = data['context'][data['gold_snippet_index']]
-        code_comment = comment_out(gold_snippet['snippet'], language)
-        code_comment = cut_text_to_max_token_length(code_comment, tokenizer, max_snippet_tokens)
+        code_comment = cut_text_to_max_token_length(gold_snippet['snippet'], tokenizer, max_snippet_tokens)
+        gold_snippet['snippet'] = code_comment
+        code_comment = comment_out(code_comment, language)
         cross_file_prompt += f"{comment_symbol} Path: {gold_snippet['path']}\n{code_comment}" + "\n\n"
         new_conetxt.append(gold_snippet)
         data['gold_snippet_index'] = len(new_conetxt) - 1
-        
+    
     data['context'] = new_conetxt
     
     # in-file prompt
@@ -169,8 +171,8 @@ def construct_specific_data(
 def add_message_tag(data_list, tokenizer_path, file_name, language, code_column_name = "cropped_code", prompt_max_tokens = 1024):
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     new_data_list = []
+    count_2048 = 0
     count_1024 = 0
-    count_768 = 0
     count_512 = 0
     for data in tqdm(data_list):
         prompt = data['prompt']
@@ -178,10 +180,10 @@ def add_message_tag(data_list, tokenizer_path, file_name, language, code_column_
         data['prompt_tokens'] = prompt_tokens
         data['tag'] = file_name
         new_data_list.append(data)
+        if prompt_tokens <= 2048:
+            count_2048 += 1
         if prompt_tokens <= 1024:
             count_1024 += 1
-        if prompt_tokens <= 768:
-            count_768 += 1
         if prompt_tokens <= 512:
             count_512 += 1
         # if prompt_tokens <= prompt_max_tokens:
@@ -189,14 +191,14 @@ def add_message_tag(data_list, tokenizer_path, file_name, language, code_column_
         #     print(prompt)
         #     input()
     print(f"file_name: {file_name}")
+    print(f"count_2048: {count_2048}")
     print(f"count_1024: {count_1024}")
-    print(f"count_768: {count_768}")
     print(f"count_512: {count_512}")
 
     return new_data_list
 
 
-def restruct_retrieval_train_data(data_list, tokenizer_path, file_name, language, code_column_name = "cropped_code", prompt_max_tokens = 1024):
+def restruct_retrieval_train_data(data_list, tokenizer_path, file_name, language, code_column_name = "cropped_code", prompt_max_tokens = 2048):
     """
     Restructure the retrieval train data by adding prompt and token length.
     :param data_list: list of data points
@@ -210,33 +212,26 @@ def restruct_retrieval_train_data(data_list, tokenizer_path, file_name, language
 
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     new_data_list = []
-    count_1536 = 0
-    count_1024 = 0
-    count_512 = 0
+    count_2048 = 0
     for data in tqdm(data_list):
         data = construct_specific_data(data, language=language, tokenizer=tokenizer, code_column_name= code_column_name)
-        if len(data['context']) <= 1:
+        if len(data['context']) < 2:
             continue
         prompt = data['prompt']
         prompt_tokens = get_token_length(tokenizer, prompt)
         data['prompt_tokens'] = prompt_tokens
         data['tag'] = file_name
-        if prompt_tokens <= 1536:
+        if prompt_tokens <= 650:
+            continue
+        if prompt_tokens <= 2048:
+            count_2048+= 1
             new_data_list.append(data)
-        if prompt_tokens <= 1536:
-            count_1536 += 1
-        if prompt_tokens <= 1024:
-            count_1024 += 1
-        if prompt_tokens <= 512:
-            count_512 += 1
         # if prompt_tokens <= prompt_max_tokens:
         #     print("prompt_tokens", prompt_tokens)
         #     print(prompt)
         #     input()
     print(f"file_name: {file_name}")
-    print(f"count_1536: {count_1536}")
-    print(f"count_1024: {count_1024}")
-    print(f"count_512: {count_512}")
+    print(f"count_2048: {count_2048}")
 
     return new_data_list
 
