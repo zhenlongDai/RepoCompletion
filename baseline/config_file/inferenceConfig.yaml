@@ -1,0 +1,22 @@
+model_path: "/data/dzl/package/CodeLLM/aixcoder-7b-v2"
+eval_dataset_name: "repobench"
+dp_size: 1
+tp_size: 1
+dp_master_ip: "127.0.0.1"
+dp_master_port: 6530 #29310
+eval_mode: "test"
+data_path_dir: "datasets/repobench/java/test"
+debug_mode: false
+language: "java"
+max_input_tokens: 10000 
+max_output_tokens: 2000
+save_file_path: "output_dir/generation/repobench/java/aixcoder-7b-v2.json"
+temperature: 0.7
+top_p: 1.0
+gpu_memory_utilization: 0.25
+dtype: "float16"
+use_lora: false
+lora_path: "None"
+without_context: false
+prompt_mode: "split"
+     

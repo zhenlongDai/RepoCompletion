@@ -18,7 +18,6 @@ class InferenceConfig:
     max_input_tokens: int
     max_output_tokens: int
     save_file_path: str
-    system_prompt: str
     temperature: int
     top_p: int
     gpu_memory_utilization: float

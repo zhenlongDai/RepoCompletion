@@ -121,6 +121,7 @@ def compute_metric(args):
             id2tag_map[pred["id"]] = pred["tag"]
 
     ts_lang =  args.language
+    print("ts_lib:", args.ts_lib)
     language = Language(args.ts_lib, ts_lang)
     parser_util = Parser()
     parser_util.set_language(language)

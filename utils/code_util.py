@@ -19,7 +19,17 @@ def comment_out(code, language):
         # 抛出异常并输出不支持的语言名称
         raise ValueError(f"Unsupported language: {language}")
 
-
+def count_non_empty_lines(content):
+    """
+    计算字符串中非空行的数量
+    
+    Args:
+        content (str): 输入的字符串内容
+        
+    Returns:
+        int: 非空行的数量
+    """
+    return len([line for line in content.splitlines() if line.strip()])
 
 def remove_language_tag(content, language): 
     # Make language case-insensitive for comparison
@@ -44,7 +54,19 @@ def extract_content(s, language):
 
         # 2. 提取所有代码块（```）并处理
         matches = re.findall(r"```(.*?)(?=```|$)", s, flags=re.DOTALL)
-        s =  matches[0] if matches else s
+        if matches:
+            if len(matches) > 1:
+                # 如果有多个代码块，取最后一个
+                while matches and matches[-1].strip() == "" or len(matches[-1].strip()) <= 5:
+                    matches.pop()
+                if len(matches) == 0:
+                    s = ""
+                else:
+                    s = matches[-1]
+                
+            else:
+                s =  matches[-1]
+        
         s = remove_language_tag(s, language)
         return s
     
@@ -52,12 +74,29 @@ def extract_content(s, language):
         print(f"verify failed: {e}, prediction: {s}")
         return s
     
+def extract_content_in_answer(s, language):
+    try:
+        # 1.提取<answer> 和 </answer> 之间的内容
+        match = re.search(r'<answer>(.*?)</answer>', s, flags=re.DOTALL)
+        if match:
+            s = match.group(1)
+        else:
+            return ""
+        # 2. 提取所有代码块（```）并处理
+        matches = re.findall(r"```(.*?)(?=```|$)", s, flags=re.DOTALL)
+        s =  matches[0] if matches else s
+        s = remove_language_tag(s, language)
+        return s
+    
+    except Exception as e:
+        print(f"verify failed: {e}, prediction: {s}")
+        return s
 
 if __name__ == "__main__":
-    # 测试函数
-    # code_sample = """def add(a, b):
-    #     return a + b"""
-    # print(comment_out(code_sample, 'python'))
+    #测试函数
+    code_sample = """def add(a, b):
+        return a + b"""
+    print(comment_out(code_sample, 'python'))
     slist = [
         "hello...<answer>    \nprint(\"hhhh)</answer>  sss",
         "<answer>    print('Hello')</answer>",
@@ -68,4 +107,5 @@ if __name__ == "__main__":
     for s in slist:
         result = extract_content(s, "python")
         print(repr(result))
-   
+
+    

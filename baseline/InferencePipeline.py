@@ -1,6 +1,6 @@
 import argparse
 from dataclasses import dataclass, fields
-from generation.configs import InferenceConfig, load_config
+from baseline.configs import InferenceConfig, load_config
 from typing import Any
 import sys
 import multiprocessing
@@ -8,7 +8,7 @@ from multiprocessing import Process, Manager, Lock, Queue
 from vllm.utils import get_open_port
 import os
 from time import sleep
-from utils.dataset_util import load_eval_dataset
+from baseline.dataset_util import load_test_dataset_by_baselineName
 from utils.json_util import save_list_to_json
 from vllm import LLM, SamplingParams
 import copy
@@ -70,15 +70,15 @@ class InferencePipeline:
         self.tp_size = args.tp_size
         self.dp_master_ip = "127.0.0.1"
         self.dp_master_port = get_open_port() if args.dp_master_port==0 else args.dp_master_port
-        data_path_dir = args.data_path_dir 
+        self.data_path_dir = args.data_path_dir 
         self.debug_mode = args.debug_mode
         self.language = args.language
         self.max_input_tokens = args.max_input_tokens
         self.max_output_tokens = args.max_output_tokens 
         self.save_file_path = args.save_file_path
-        self.system_prompt = args.system_prompt
         self.temperature = args.temperature
         self.top_p = args.top_p
+        self.eval_dataset_name = args.eval_dataset_name
         self.gpu_memory_utilization = args.gpu_memory_utilization
         self.dtype = args.dtype
         self.use_lora = args.use_lora
@@ -87,9 +87,9 @@ class InferencePipeline:
         self.eval_mode = args.eval_mode
         self.prompt_mode = args.prompt_mode
         print("self.dp_master_port", self.dp_master_port)
-        data_list = load_eval_dataset(self.system_prompt, args.eval_dataset_name, data_path_dir, self.language, 
+        data_list = load_test_dataset_by_baselineName(args.eval_dataset_name, self.data_path_dir, self.language, 
                                       self.model_path, self.max_input_tokens, self.debug_mode, self.without_context, 
-                                      self.eval_mode, self.prompt_mode)
+                                    )
         
         manager = Manager()
         self.data_list = manager.list(data_list)

@@ -175,6 +175,15 @@ def get_python_one_statement(prompt, completion, parser):
 
     return completion
 
+def postprocess_python_code_lines(prompt, completion, parser, lang):
+    for i in range(len(completion)):
+        code = prompt + completion[:i + 1]
+        #if not is_parse_valid(parser, code):
+        #    continue
+        if completion[i + 1] == "\n":
+            return completion[:i + 1].rstrip()
+
+    return completion
 
 def postprocess_code_lines(prompt, completion, parser, lang):
     try:

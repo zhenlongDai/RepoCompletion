@@ -1,10 +1,11 @@
 export CUDA_VISIBLE_DEVICES=2
-export NCCL_P2P_DISABLE=1
-model_name="Qwen2.5-Coder-7B-Instruct"
-save_name="$model_name"
-language="python"
+base_model_name="Qwen2.5-Coder-7B-Instruct"
+model_name="Qwen2.5-7B-Instruct-Context-KL-IDES"
+save_name="Qwen2.5-7B-Instruct-Context-KL-IDES-500"
+language="java"
 eval_dataset_name="repobench"
 without_context=false
+lora_path="./weights/$language/$model_name/checkpoint-500"
 #如果without_context为true，则不使用上下文，prediction_file的路径需要修改
 if [ "$without_context" = true ]; then
     save_file_path="./output_dir/generation/$eval_dataset_name/$language/without_context/$save_name.json"
@@ -13,8 +14,8 @@ else
 fi
 
 cmd="python -m generation.InferencePipeline \
-    --config generation/config_file/inferenceConfig.yaml \
-    --model ../../package/CodeLLM/$model_name \
+    --config generation/config_file/ContextConfig.yaml \
+    --model ../../package/CodeLLM/$base_model_name \
     --data_path_dir datasets/$eval_dataset_name/$language/test \
     --language $language \
     --save_file_path $save_file_path \
@@ -22,10 +23,16 @@ cmd="python -m generation.InferencePipeline \
     --dp_size 1 \
     --tp_size 1 \
     --gpu_memory_utilization 0.7 \
-    --temperature 0.7"
+    --temperature 0.7 \
+    --use_lora true \
+    --lora_path $lora_path
+    "
 
 if [ "$without_context" = true ]; then
     cmd="$cmd --without_context $without_context"
 fi
 
 eval $cmd
+
+     
+    

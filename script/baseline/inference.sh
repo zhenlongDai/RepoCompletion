@@ -1,8 +1,8 @@
 export CUDA_VISIBLE_DEVICES=2
 export NCCL_P2P_DISABLE=1
-model_name="Qwen2.5-Coder-7B-Instruct"
+model_name="aixcoder-7b-v2"
 save_name="$model_name"
-language="python"
+language="java"
 eval_dataset_name="repobench"
 without_context=false
 #如果without_context为true，则不使用上下文，prediction_file的路径需要修改
@@ -12,8 +12,8 @@ else
     save_file_path="./output_dir/generation/$eval_dataset_name/$language/$save_name.json"
 fi
 
-cmd="python -m generation.InferencePipeline \
-    --config generation/config_file/inferenceConfig.yaml \
+cmd="python -m baseline.InferencePipeline \
+    --config baseline/config_file/inferenceConfig.yaml \
     --model ../../package/CodeLLM/$model_name \
     --data_path_dir datasets/$eval_dataset_name/$language/test \
     --language $language \

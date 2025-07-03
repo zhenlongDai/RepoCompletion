@@ -1,7 +1,7 @@
-export CUDA_VISIBLE_DEVICES=5
+export CUDA_VISIBLE_DEVICES=2
 model_name="Qwen2.5-Coder-7B-Instruct"
-save_name="$model_name-Lora-4"
-language="java"
+save_name="$model_name-Lora"
+language="python"
 eval_dataset_name="repobench"
 without_context=false
 lora_path="./weights/$language/Qwen2.5-7B-Instruct-Lora/checkpoint-475"

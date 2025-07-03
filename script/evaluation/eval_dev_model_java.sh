@@ -1,13 +1,13 @@
 export CUDA_VISIBLE_DEVICES=2
 cuda_visible_devices="2"
-model_name="Qwen2.5-7B-Instruct-intent-KL_CL-codeIDF12ES"
-language="python"
+model_name="Qwen2.5-7B-Instruct-intent-KL-CL-mix_any_codeIDF1_2ES"
+language="java"
 ts_lib="build/$language-lang-parser.so"
 base_model_path="/data/dzl/package/CodeLLM/Qwen2.5-Coder-7B-Instruct"
 dataset_name="repobench"
 python -m evaluation.eval_model_pipeline \
     --config evaluation/config_file/evalConfig.yaml \
-    --generation_params.inference_config generation/config_file/IntentConfig.yaml \
+    --generation_params.inference_config generation/config_file/GRPOConfig.yaml \
     --language $language \
     --ts_lib $ts_lib \
     --models_dir ./weights/$language/$model_name \

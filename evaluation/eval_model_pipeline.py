@@ -80,30 +80,30 @@ class ModelEvaluationPipeline:
         print(f"Discovered {len(model_paths)} models: {[Path(p['path']).name for p in model_paths]}")
         return model_paths
         
-    def create_inference_args(self, model_path: str, output_file: str, eval_mode: str) -> InferenceConfig:
-        """创建推理参数配置"""
-        # 加载基础配置
-        base_config = load_config(self.config.get('generation_config', 'config.yaml'))
+    # def create_inference_args(self, model_path: str, output_file: str, eval_mode: str) -> InferenceConfig:
+    #     """创建推理参数配置"""
+    #     # 加载基础配置
+    #     base_config = load_config(self.config.get('generation_config', 'config.yaml'))
         
-        # 更新配置参数
-        base_config.model_path = model_path
-        base_config.save_file_path = output_file
-        base_config.eval_dataset_name = self.config.get('eval_dataset_name')
-        base_config.data_path_dir = os.path.join(self.config.get(f'{eval_mode}_data_path_dir')) #错误已经没有这个参数了
-        base_config.language = self.config.get('language')
-        base_config.debug_mode = self.config.get('debug_mode')
-        base_config.prompt_mode = self.config.get('prompt_mode')
+    #     # 更新配置参数
+    #     base_config.model_path = model_path
+    #     base_config.save_file_path = output_file
+    #     base_config.eval_dataset_name = self.config.get('eval_dataset_name')
+    #     base_config.data_path_dir = os.path.join(self.config.get(f'{eval_mode}_data_path_dir')) #错误已经没有这个参数了
+    #     base_config.language = self.config.get('language')
+    #     base_config.debug_mode = self.config.get('debug_mode')
+    #     base_config.prompt_mode = self.config.get('prompt_mode')
 
-        # 根据模式设置不同的数据集
-        base_config.eval_dataset_name = self.config.get('eval_dataset_name')
+    #     # 根据模式设置不同的数据集
+    #     base_config.eval_dataset_name = self.config.get('eval_dataset_name')
             
-        # 设置生成参数
-        generation_params = self.config.get('generation_params', {})
-        for key, value in generation_params.items():
-            if hasattr(base_config, key):
-                setattr(base_config, key, value)
+    #     # 设置生成参数
+    #     generation_params = self.config.get('generation_params', {})
+    #     for key, value in generation_params.items():
+    #         if hasattr(base_config, key):
+    #             setattr(base_config, key, value)
                 
-        return base_config
+    #     return base_config
         
     def run_generation(self, model_path: str, eval_mode: str) -> str:
         """运行单个模型的生成（使用subprocess确保资源隔离）"""
@@ -210,6 +210,7 @@ class ModelEvaluationPipeline:
                 self.eval_mode = eval_mode
                 self.prompt_mode = config.get('prompt_mode')
         eval_args = EvalArgs()
+        print(f"Creating evaluation args for language:{eval_args.language} with generation file: {generation_file}")
         return eval_args
             
     def run_evaluation(self, generation_file: str, model_name: str, eval_mode: str) -> Optional[Dict]:
@@ -376,6 +377,8 @@ class ModelEvaluationPipeline:
             
             # 运行评估（仅在dev模式下）
             eval_result = self.run_evaluation(generation_file, model_name, eval_mode='dev')
+            # print(eval_result)
+            # input()
             eval_result['model_path'] = model_path
             if eval_result:
                 all_results.append(eval_result)
@@ -445,10 +448,16 @@ def main():
                        dest='generation_params_inference_config', help="Configuration file path of infernce pipeline")
     parser.add_argument("--models_dir", type=str, help="Directory containing model weights")
     parser.add_argument("--output_dir", type=str, help="Output directory for results")
+    parser.add_argument("--language", type=str, help="language")
+    parser.add_argument("--ts_lib", type=str, help="Tree-sitter library path")
+    parser.add_argument('--generation_params.base_model_path', type=str, dest='generation_params_base_model_path', default=None,
+                        help="Base model path for LoRA, if using LoRA")
+    parser.add_argument('--generation_params.cuda_visible_devices', type=str, dest='generation_params_cuda_visible_devices', default="0,1",
+                        help="CUDA_VISIBLE_DEVICES for generation")
     parser.add_argument('--generation_params.dev_data_path_dir', type=str, dest='generation_params_dev_data_path_dir')
     parser.add_argument('--generation_params.test_data_path_dir', type=str, dest='generation_params_test_data_path_dir')
     parser.add_argument('--generation_params.use_lora', type=bool, dest='generation_params_use_lora', default=False, help="Whether to use LoRA for generation")
-
+        
     
     args = parser.parse_args()
     # 加载配置

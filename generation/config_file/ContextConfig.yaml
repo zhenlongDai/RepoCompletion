@@ -1,19 +1,21 @@
 model_path: "CodeLLM/Qwen2.5-Coder-0.5B-Instruct"
 eval_dataset_name: "repobench"
-dp_size: 1
+dp_size: 2
 tp_size: 1
 dp_master_ip: "127.0.0.1"
-dp_master_port: 6530 #29310
+dp_master_port: 0 #29310
 eval_mode: "test"
 data_path_dir: "datasets/repobench/java/test"
 debug_mode: false
 language: "java"
-max_input_tokens: 4096
+max_input_tokens: 10000
 save_file_path: "output_dir/generation/repobench/java/QwenCoder0.5B.json"
 system_prompt: "You are a helpful assistant tasked with completing the next line of a repository-level code file.
- You are provided with an incomplete code file, and other code snippets from the same repository are provided as comments above the code.  
- You first think about the reasoning process as an internal monologue, which includes analyzing the incomplete code in the context of related snippets to infer the user’s intent and determine how to complete the next line. Then You should provide the user with the next line of the incomplete code. 
- Please respond in the following format: <think>\n...\n</think>\n<answer>\n```...```\n</answer>"
+ You are provided with an incomplete code file and other code snippets from the same repository.  
+ You first think about the reasoning process as an internal monologue, which includes analyzing all code snippets one by one, inferring the user's intent for completion based on previous analysis of code snippets and the incomplete code. Then, you should provide the user with the next line of the incomplete code. 
+ The reasoning process of analyzing all code snippets should be enclosed within <context> and </context> tags. 
+ The reasoning process of user's intent should be enclosed within <intent> and </intent> tags, while the final answer should be enclosed within <answer> and </answer> tags.
+ Please respond in the following format: <context>\n...\n</context>\n<intent>\n...\n</intent>\n<answer>\n```...```\n</answer>"
 temperature: 0.7
 top_p: 1.0
 gpu_memory_utilization: 0.25
@@ -21,4 +23,5 @@ dtype: "float16"
 use_lora: false
 lora_path: "None"
 without_context: false
+prompt_mode: "split"
      
