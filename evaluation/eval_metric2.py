@@ -51,13 +51,8 @@ def process_examples(language, parser, args):
 
     pred_lines = [l.strip() for l in prediction.split("\n") if l.strip()]
     gt_lines = [l.strip() for l in target.split("\n") if l.strip()]
-    
     # pred_line =  pred_lines[0] if len(pred_lines) > 0 else ""
     # gt_line = gt_lines[0] if len(gt_lines) > 0 else ""
-    # if pred_line == gt_line:
-    #     em_label = 1
-    # else:   
-    #     em_label = 0
     em_label = int(pred_lines == gt_lines)
     #print(f"pred_lines: {pred_lines} gt_lines: {gt_lines} ")
     pred_ids = extract_identifiers(prediction, language)
@@ -139,7 +134,7 @@ def compute_metric(args):
 
     with tqdm(total=len(prediction_list)) as pbar:
         for sample, example in zip(prediction_list, [groundtruth_map[s["id"]] for s in prediction_list]):
-            #print(f"Processing sample id: {sample['id']}")
+            print(f"Processing sample id: {sample['id']}")
             output = worker((sample, example))
             trunc_s, em_label = output
             em_labels.append(em_label)

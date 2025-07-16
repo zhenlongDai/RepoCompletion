@@ -6,9 +6,9 @@ attn_implementation: flash_attention_2
 use_peft: true
 
 # Data training arguments
-language: python
+language: java
 prompt_mode: split # prompt_mode: comment
-dataset_name: /data/dzl/RL_project/RepoCompletion/datasets/repobench/python
+dataset_name: /data/dzl/RL_project/RepoCompletion/datasets/repobench/java
 dataset_prompt_column: prompt
 dataset_completion_column: solution
 system_prompt: "You are a helpful assistant tasked with completing the next line of a repository-level code file.
@@ -29,9 +29,9 @@ eval_strategy: "no"
 use_vllm: true
 vllm_gpu_memory_utilization: 0.7
 vllm_server_port: 8100
-group_port: 51216
+group_port: 56216
 do_eval: false
-gradient_accumulation_steps: 4
+gradient_accumulation_steps: 2
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
@@ -50,16 +50,16 @@ max_completion_length: 2048
 max_steps: -1
 num_generations: 6
 num_train_epochs: 1
-output_dir: weights/python/Qwen2.5-7B-Instruct-ablation_KL
+output_dir: weights/java/Qwen2.5-7B-Instruct-intent-KL-CL-codeF1expS
 overwrite_output_dir: true
-per_device_train_batch_size: 12
+per_device_train_batch_size: 16
 push_to_hub: false
 wandb_project: R1
 report_to:
 - wandb
 reward_funcs: #thought_length_by_CodeID
 - codelines_reward
-- mix_codeIDF12ES
+- codeF1expS_reward
 - code_format
 reward_weights:
 - 0.1

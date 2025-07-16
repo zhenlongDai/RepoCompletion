@@ -6,18 +6,21 @@ attn_implementation: flash_attention_2
 use_peft: true
 
 # Data training arguments
-language: python
+language: java
 prompt_mode: split # prompt_mode: comment
-dataset_name: /data/dzl/RL_project/RepoCompletion/datasets/repobench/python
+dataset_name: /data/dzl/RL_project/RepoCompletion/datasets/repobench/java
 dataset_prompt_column: prompt
 dataset_completion_column: solution
 system_prompt: "You are a helpful assistant tasked with completing the next line of a repository-level code file.
- You are provided with an incomplete code file and other code snippets from the same repository. 
- You first think about the reasoning process as an internal monologue that infers the user's intent of completion. 
- Then, you should provide the user with the next line of the incomplete code.
- The reasoning process should be enclosed within <think> and </think> tags, while the final answer should be enclosed within <answer> and </answer> tags. 
- Please respond in the following format: <think>\n...\n</think>\n<answer>\n```...```\n</answer>"
-
+ You are provided with an incomplete code file and other code snippets from the same repository.  
+ You first think about the reasoning process as an internal monologue, which includes analyzing all code snippets one by one, 
+ focusing on their structure, logic, key variables, functions, and control flows. 
+ You should pay attention to any dependencies between the incomplete code and the provided snippets, and consider how each snippet influences the overall behavior of the program. 
+ You should also infer the user's intent for completion based on your analysis of the code snippets and the incomplete code in the reasoning process. 
+ Then, you should provide the user with the next line of the incomplete code. 
+ The reasoning process of analyzing all code snippets should be enclosed within <context> and </context> tags. 
+ The reasoning process of user's intent should be enclosed within <intent> and </intent> tags, while the final answer should be enclosed within <answer> and </answer> tags.
+ Please respond in the following format: <context>\n...\n</context>\n<intent>\n...\n</intent>\n<answer>\n```...```\n</answer>"
 # system_prompt: "You first think about the reasoning process as an internal monologue and then provide the user with the answer. 
 #  Respond in the following format: <think>\n...\n</think>\n<answer>\n...\n</answer>"
 
@@ -28,10 +31,10 @@ do_eval: false
 eval_strategy: "no"
 use_vllm: true
 vllm_gpu_memory_utilization: 0.7
-vllm_server_port: 8100
+vllm_server_port: 8000
 group_port: 51216
 do_eval: false
-gradient_accumulation_steps: 4
+gradient_accumulation_steps: 8
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
@@ -50,24 +53,22 @@ max_completion_length: 2048
 max_steps: -1
 num_generations: 6
 num_train_epochs: 1
-output_dir: weights/python/Qwen2.5-7B-Instruct-ablation_KL
+output_dir: weights/java/Qwen2.5-7B-Instruct-SContext_KL_DIES
 overwrite_output_dir: true
-per_device_train_batch_size: 12
+per_device_train_batch_size: 8
 push_to_hub: false
 wandb_project: R1
 report_to:
 - wandb
-reward_funcs: #thought_length_by_CodeID
-- codelines_reward
-- mix_codeIDF12ES
-- code_format
+reward_funcs:
+- code_similarity
+- context_format
 reward_weights:
-- 0.1
 - 1.0
 - 0.2
 save_strategy: "steps"
-save_steps: 0.2
-eval_steps: 0.2
+save_steps: 0.1
+eval_steps: 0.1
 save_total_limit: 50
 seed: 42
 temperature: 0.7

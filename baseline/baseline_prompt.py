@@ -6,7 +6,7 @@ from tqdm import tqdm
 import re
 from baseline.utils import _format
 import textwrap
-
+from utils.dataset_util import construct_test_prompt
 LANGUAGE_COMMENT_MAP = {
     "python": "#",
     "c++": "//",
@@ -72,6 +72,12 @@ def construct_aixcoder_prompt(data, language, tokenizer, eval_dataset_name, max_
     
     prompt = process_sample_instruction_model(sample, language, tokenizer, max_input_tokens, )
     return prompt
+
+def  construct_starcoder_prompt(data, language, tokenizer, eval_dataset_name, max_input_tokens = 16384, without_context=False):
+    if eval_dataset_name == "repobench":
+        prompt = construct_test_prompt(data, language, tokenizer, "cropped_code", max_input_tokens, without_context, "comment") 
+    return prompt
+
 
 def process_sample_instruction_model(sample, language, tokenizer, max_length):
 

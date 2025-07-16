@@ -1,6 +1,6 @@
 model_path: "CodeLLM/Qwen2.5-Coder-0.5B-Instruct"
 eval_dataset_name: "repobench"
-dp_size: 1
+dp_size: 2
 tp_size: 1
 dp_master_ip: "127.0.0.1"
 dp_master_port: 6530 #29310
@@ -9,6 +9,7 @@ data_path_dir: "datasets/repobench/java/test"
 debug_mode: false
 language: "java"
 max_input_tokens: 10000
+max_output_tokens: 500
 save_file_path: "output_dir/generation/repobench/java/QwenCoder0.5B.json"
 system_prompt: "You are a helpful assistant tasked with completing the next line of a repository-level code file.
  You are provided with an incomplete code file and other code snippets from the same repository. 

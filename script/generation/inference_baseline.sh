@@ -14,7 +14,7 @@ fi
 
 cmd="python -m generation.InferencePipeline \
     --config generation/config_file/inferenceConfig.yaml \
-    --model ../../package/CodeLLM/$model_name \
+    --model_path ../../package/CodeLLM/$model_name \
     --data_path_dir datasets/$eval_dataset_name/$language/test \
     --language $language \
     --save_file_path $save_file_path \

@@ -29,7 +29,7 @@ eval_strategy: "no"
 use_vllm: true
 vllm_gpu_memory_utilization: 0.7
 vllm_server_port: 8100
-group_port: 51216
+group_port: 56216
 do_eval: false
 gradient_accumulation_steps: 4
 gradient_checkpointing: true
@@ -50,7 +50,7 @@ max_completion_length: 2048
 max_steps: -1
 num_generations: 6
 num_train_epochs: 1
-output_dir: weights/python/Qwen2.5-7B-Instruct-ablation_KL
+output_dir: weights/python/Qwen2.5-7B-Instruct-ablation-completion
 overwrite_output_dir: true
 per_device_train_batch_size: 12
 push_to_hub: false
@@ -58,11 +58,9 @@ wandb_project: R1
 report_to:
 - wandb
 reward_funcs: #thought_length_by_CodeID
-- codelines_reward
-- mix_codeIDF12ES
+- code_id_F
 - code_format
 reward_weights:
-- 0.1
 - 1.0
 - 0.2
 save_strategy: "steps"

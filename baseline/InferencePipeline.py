@@ -65,6 +65,7 @@ def get_part_eval_dataset(data_list, local_dp_rank, dp_size, lock):
 class InferencePipeline:
     
     def __init__(self, args):
+        self.model_name = args.model_name
         self.model_path = args.model_path
         self.dp_size = args.dp_size
         self.tp_size = args.tp_size
@@ -87,7 +88,7 @@ class InferencePipeline:
         self.eval_mode = args.eval_mode
         self.prompt_mode = args.prompt_mode
         print("self.dp_master_port", self.dp_master_port)
-        data_list = load_test_dataset_by_baselineName(args.eval_dataset_name, self.data_path_dir, self.language, 
+        data_list = load_test_dataset_by_baselineName(self.model_name, args.eval_dataset_name, self.data_path_dir, self.language, 
                                       self.model_path, self.max_input_tokens, self.debug_mode, self.without_context, 
                                     )
         

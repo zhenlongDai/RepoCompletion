@@ -13,3 +13,5 @@ weights/
 dzlenv/
 record/
 .vscode/
+script/train/test.sh
+data/

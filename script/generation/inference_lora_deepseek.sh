@@ -1,10 +1,10 @@
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=2,5
 export NCCL_P2P_DISABLE=1
 language="python"
-model_name="deepseek-coder-6.7b-instruct"
+model_name="Qwen2.5-Coder-7B-Instruct"
 save_name="$model_name-Lora"
-lora_path="./weights/$language/$save_name/checkpoint-475"
-eval_dataset_name="repobench" #repobench/cceval
+lora_path="./weights/$language/Qwen2.5-7B-Instruct-Lora/checkpoint-475"
+eval_dataset_name="cceval" #repobench/cceval
 if [ "$eval_dataset_name" = "repobench" ]; then
     data_path_dir="datasets/$eval_dataset_name/$language/test"
 else
@@ -29,7 +29,7 @@ cmd="python -m generation.InferencePipeline \
     --dtype float16 \
     --dp_size 2 \
     --tp_size 1 \
-    --gpu_memory_utilization 0.9 \
+    --gpu_memory_utilization 0.7 \
     --temperature 0.7 \
     --use_lora true \
     --lora_path $lora_path

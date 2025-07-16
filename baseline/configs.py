@@ -5,6 +5,7 @@ from typing import Any
     
 @dataclass
 class InferenceConfig:
+    model_name: str
     model_path: str
     eval_dataset_name: str
     dp_size: int

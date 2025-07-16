@@ -8,9 +8,9 @@ import json
 from datasets import  Dataset, DatasetDict
 from transformers import BertTokenizer
 from utils.eval_utils import uncomment_code
-from baseline.aixcoder_prompt import construct_aixcoder_prompt
+from baseline.baseline_prompt import construct_aixcoder_prompt, construct_starcoder_prompt
 
-def load_test_dataset_by_baselineName(eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode, without_context = False):
+def load_test_dataset_by_baselineName(model_name, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, debug_mode, without_context = False):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     data_list = []
 
@@ -23,7 +23,10 @@ def load_test_dataset_by_baselineName(eval_dataset_name, data_dir_path, language
             data_num = len(data_list)
             for idx, data in enumerate(ori_data_list):
                 temp_data = {}
-                temp_data['prompt'] = construct_aixcoder_prompt(data, language, tokenizer, eval_dataset_name, max_input_tokens, without_context)
+                if model_name == "aixcoder-7b-v2":
+                    temp_data['prompt'] = construct_aixcoder_prompt(data, language, tokenizer, eval_dataset_name, max_input_tokens, without_context)
+                elif "starcoder2" in model_name:
+                    temp_data['prompt'] = construct_starcoder_prompt(data, language, tokenizer, eval_dataset_name, max_input_tokens, without_context)
                 temp_data['tag'] = tag_name
                 temp_data['id'] = idx + data_num
                 temp_data['ground_truth'] = data['next_line']

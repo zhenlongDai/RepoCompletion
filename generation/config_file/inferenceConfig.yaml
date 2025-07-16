@@ -18,7 +18,7 @@ system_prompt: "You are a helpful assistant tasked with completing the next line
  Please respond in the following format: <answer>\n```...```\n</answer>"
 temperature: 0.7
 top_p: 1.0
-gpu_memory_utilization: 0.25
+gpu_memory_utilization: 0.9
 dtype: "float16"
 use_lora: false
 lora_path: "None"

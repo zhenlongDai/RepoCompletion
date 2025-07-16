@@ -185,6 +185,16 @@ def postprocess_python_code_lines(prompt, completion, parser, lang):
 
     return completion
 
+def postprocess_code_lines_for_train(prompt, completion, parser, lang):
+    try:
+        if lang in ["java", "csharp", "typescript"]:
+            return get_bracket_lang_statement(completion)
+        elif lang == "python":
+            return postprocess_python_code_lines(prompt, completion, parser)
+    except Exception as e:
+        return completion
+
+
 def postprocess_code_lines(prompt, completion, parser, lang):
     try:
         if lang in ["java", "csharp", "typescript"]:

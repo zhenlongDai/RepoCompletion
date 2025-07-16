@@ -26,7 +26,7 @@ from latex2sympy2_extended import NormalizationConfig
 from math_verify import LatexExtractionConfig, parse, verify
 from tree_sitter import Language, Parser
 from utils.eval_utils import (
-    postprocess_code_lines,
+    postprocess_code_lines_for_train,
     extract_identifiers,
     cal_edit_sim,
     remove_comments,
@@ -51,7 +51,7 @@ def accuracy_code_reward(completions: list[list[dict[str, str]]], solution: list
         # Extract code from the content
         content = extract_content_in_answer(content, lan)
         # Postprocess the code to remove comments and format it
-        content = postprocess_code_lines(code, content, parser_util, lan)
+        content = postprocess_code_lines_for_train(code, content, parser_util, lan)
         content = remove_comments(content)
         pred_lines = [l.strip() for l in content.split("\n") if l.strip()]
         
@@ -77,7 +77,7 @@ def code_identifiers_reward(completions: list[list[dict[str, str]]], solution: l
         # Extract code from the content
         content = extract_content_in_answer(content, lan)
         # Postprocess the code to remove comments and format it
-        content = postprocess_code_lines(code, content, parser_util, lan)
+        content = postprocess_code_lines_for_train(code, content, parser_util, lan)
         content = remove_comments(content)
 
         pred_ids = extract_identifiers(content, lan)
@@ -103,7 +103,7 @@ def code_identifiers_precision_reward(completions: list[list[dict[str, str]]], s
         # Extract code from the content
         content = extract_content_in_answer(content, lan)
         # Postprocess the code to remove comments and format it
-        content = postprocess_code_lines(code, content, parser_util, lan)
+        content = postprocess_code_lines_for_train(code, content, parser_util, lan)
         content = remove_comments(content)
 
         pred_ids = extract_identifiers(content, lan)
@@ -130,7 +130,7 @@ def code_identifiers_Recall_reward(completions: list[list[dict[str, str]]], solu
         # Extract code from the content
         content = extract_content_in_answer(content, lan)
         # Postprocess the code to remove comments and format it
-        content = postprocess_code_lines(code, content, parser_util, lan)
+        content = postprocess_code_lines_for_train(code, content, parser_util, lan)
         content = remove_comments(content)
 
         pred_ids = extract_identifiers(content, lan)
@@ -276,7 +276,7 @@ def code_smi_reward(completions: list[list[dict[str, str]]], solution: list[str]
         # Extract code from the content
         content = extract_content_in_answer(content, lan)
         # Postprocess the code to remove comments and format it
-        content = postprocess_code_lines(code, content, parser_util, lan)
+        content = postprocess_code_lines_for_train(code, content, parser_util, lan)
         content = remove_comments(content)
         sol = remove_comments(sol)
         reward = round(cal_edit_sim([sol], [content]) /100.0,5)
@@ -391,13 +391,15 @@ def tag_count_reward(completions, **kwargs) -> list[float]:
     def count_tags(text: str) -> float:
         count = 0.0
         if text.count("<think>\n") == 1:
-            count += 0.25
+            count += 0.20
         if text.count("\n</think>\n") == 1:
-            count += 0.25
+            count += 0.20
         if text.count("\n<answer>\n") == 1:
-            count += 0.25
+            count += 0.20
         if text.count("\n</answer>") == 1:
-            count += 0.25
+            count += 0.20
+        if text.count("\n```") == 2:
+            count += 0.20
         return count
 
     contents = [completion[0]["content"] for completion in completions]
@@ -682,7 +684,7 @@ def exmpale3():
     len = count_non_empty_lines(content_1)
     print("Postprocessed Python Code:", content_1, len)
     
-    content_2 = postprocess_code_lines(input_code, content, parser_util, language)
+    content_2 = postprocess_code_lines_for_train(input_code, content, parser_util, language)
     len = count_non_empty_lines(content_2)
     print("Postprocessed Code:", content, len)
 if __name__ == "__main__":

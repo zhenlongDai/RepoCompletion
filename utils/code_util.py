@@ -54,18 +54,19 @@ def extract_content(s, language):
 
         # 2. 提取所有代码块（```）并处理
         matches = re.findall(r"```(.*?)(?=```|$)", s, flags=re.DOTALL)
-        if matches:
-            if len(matches) > 1:
-                # 如果有多个代码块，取最后一个
-                while matches and matches[-1].strip() == "" or len(matches[-1].strip()) <= 5:
-                    matches.pop()
-                if len(matches) == 0:
-                    s = ""
-                else:
-                    s = matches[-1]
+        s =  matches[0] if matches else s
+        # if matches:
+        #     if len(matches) > 1:
+        #         # 如果有多个代码块，取最后一个
+        #         while matches and matches[-1].strip() == "" or len(matches[-1].strip()) <= 5:
+        #             matches.pop()
+        #         if len(matches) == 0:
+        #             s = ""
+        #         else:
+        #             s = matches[-1]
                 
-            else:
-                s =  matches[-1]
+        #     else:
+        #         s =  matches[-1]
         
         s = remove_language_tag(s, language)
         return s

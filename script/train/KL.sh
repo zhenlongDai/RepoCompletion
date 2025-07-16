@@ -20,18 +20,20 @@
 # export https_proxy=http://192.168.1.52:7891
 # export HTTP_PROXY=http://192.168.1.52:7891
 # export HTTPS_PROXY=http://192.168.1.52:7891
-export CUDA_VISIBLE_DEVICES=0,1,3,7
+export CUDA_VISIBLE_DEVICES=0,1,3,4
 export WANDB_CONSOLE=off
 export RICH_DISABLE=1
 export WANDB_MODE=offline
 #export NCCL_P2P_DISABLE=1
 #export NCCL_IB_DISABLE=1
 
-accelerate launch --main_process_port 29300 --num_processes 4 --config_file configs/accelerate_configs/zero2.yaml train/grpo.py \
-    --config configs/Qwen2.5-7B-Instruct/grpo/config_GRPO.yaml
+accelerate launch --main_process_port 29300 --num_processes 4 --config_file configs/accelerate_configs/zero2.yaml train/choose_trainer.py \
+    --config configs/Qwen2.5-7B-Instruct/grpo/config_ablation-IC.yaml
 
 accelerate launch --main_process_port 29300 --num_processes 4 --config_file configs/accelerate_configs/zero2.yaml train/choose_trainer.py \
-    --config configs/Qwen2.5-7B-Instruct/grpo/config_ablation-com_G4.yaml
+    --config configs/Qwen2.5-7B-Instruct/grpo/config_ablation-IC_java.yaml
 
-accelerate launch --main_process_port 29300 --num_processes 4 --config_file configs/accelerate_configs/zero2.yaml train/choose_trainer.py \
-    --config configs/Qwen2.5-7B-Instruct/grpo/config_ablation-intent_G4.yaml
+
+# accelerate launch --main_process_port 29300 --num_processes 4 --config_file configs/accelerate_configs/zero2.yaml train/choose_trainer.py \
+#     --config configs/deepseek-coder-6.7b-instruct/grpo/config_ablation_KL.yaml
+

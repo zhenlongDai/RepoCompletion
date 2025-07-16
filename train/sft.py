@@ -127,7 +127,7 @@ def main(script_args, training_args, model_args):
     # #输出dataset中的第一条数据
     print("First example in dataset:")
     print(dataset[script_args.dataset_train_split][0])
-    input("Press Enter to continue2...")
+    #input("Press Enter to continue2...")
 
     ################
     # Load tokenizer

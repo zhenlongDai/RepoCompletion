@@ -16,10 +16,6 @@
 # done
 
 # 启动第二个服务（前台）
-# export http_proxy=http://192.168.1.52:7891
-# export https_proxy=http://192.168.1.52:7891
-# export HTTP_PROXY=http://192.168.1.52:7891
-# export HTTPS_PROXY=http://192.168.1.52:7891
 export CUDA_VISIBLE_DEVICES=1,3,4
 export WANDB_CONSOLE=off
 export RICH_DISABLE=1

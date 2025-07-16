@@ -1,6 +1,6 @@
 import re
 import os
-from utils.json_util import load_list_from_json
+from utils.json_util import load_list_from_json, load_list_from_jsonl
 from trl.data_utils import maybe_apply_chat_template
 from transformers import AutoTokenizer
 from utils.code_util import comment_out
@@ -84,6 +84,7 @@ def construct_split_prompt(
     """
 
      # construct the prompt with split snippets
+    
     if isinstance(data['context'], str):
         context_list = split_snippets(data['context'], language)
     else:
@@ -225,7 +226,7 @@ def construct_model_prompt(data, language, tokenizer = None, max_input_tokens = 
     example = {}
     if eval_mode == "test":
         example['prompt'] = construct_test_prompt(data, language, tokenizer, "cropped_code", max_input_tokens, without_context, prompt_mode) #constrcut input of a specific task
-        example['prompt'] = f"```\n{ example['prompt']}\n```"
+        #example['prompt'] = f"{ example['prompt']}" #f"```\n{ example['prompt']}\n```"
     elif eval_mode == "train" or eval_mode == "dev":
         example['prompt'] = construct_task_prompt(data, language, prompt_mode) # pass
    
@@ -241,9 +242,9 @@ def load_eval_dataset(system_prompt, eval_dataset_name, data_dir_path, language,
     
 def load_test_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, prompt_mode, debug_mode, without_context = False):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    data_list = []
 
     if eval_dataset_name == "repobench":
+        data_list = []
         file_name2tag_map = {"cross_file_first":"cff", "cross_file_random":"cfr", "in_file":"if"} 
         for file_name, tag_name in file_name2tag_map.items():
             data_file_path = os.path.join(data_dir_path, f"{file_name}.json")
@@ -257,9 +258,45 @@ def load_test_dataset(system_prompt, eval_dataset_name, data_dir_path, language,
                 temp_data['id'] = idx + data_num
                 temp_data['ground_truth'] = data['next_line']
                 data_list.append(temp_data)
+    elif eval_dataset_name == "cceval":
+        data_list = get_cceval_data(data_dir_path, language, tokenizer, max_input_tokens, system_prompt, without_context, prompt_mode) 
+        pass
+
     print("the number of data_list:", len(data_list))
     #input()
     return data_list if not debug_mode else data_list[:10]
+
+def convert_cceval_data(data):
+    sample = {}
+    sample['cropped_code'] = data['prompt']
+    sample['next_line'] = data['groundtruth']
+    sample['repo_name'] = data['metadata']['repository']
+    sample['file_path'] = data['metadata']['file']
+    sample['import_statement'] = ""
+    context_list = []
+    for context in  data['crossfile_context']['list']:
+        context_list.append({'path':context['filename'], 'snippet':context['retrieved_chunk']})
+    sample['context'] = context_list
+
+    return sample
+
+def get_cceval_data(data_dir_path, language, tokenizer, max_input_tokens, system_prompt, without_context, prompt_mode):
+    data_list = []
+    file_name2tag_map = {"openai_cosine_sim":"openai"} #"openai_cosine_sim":"openai", "unixcoder_cosine_sim":"unixcoder"} 
+    for file_name, tag_name in file_name2tag_map.items():
+        data_file_path = os.path.join(data_dir_path, f"line_completion_oracle_{file_name}.jsonl")
+        print(">>> start load data from data_file_path:", data_file_path)
+        ori_data_list = load_list_from_jsonl(data_file_path)
+        for idx, data in enumerate(ori_data_list):
+            temp_data = {}
+            new_data = convert_cceval_data(data)
+            temp_data['prompt'] = construct_model_prompt(new_data, language, tokenizer, max_input_tokens, system_prompt, without_context, "test", prompt_mode)
+            temp_data['tag'] = tag_name
+            temp_data['id'] = idx 
+            temp_data['ground_truth'] = new_data['next_line']
+            data_list.append(temp_data)
+    
+    return data_list
 
 def load_dev_dataset(system_prompt, eval_dataset_name, data_dir_path, language, model_path, max_input_tokens, prompt_mode, debug_mode):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -291,10 +328,25 @@ def load_ground_truth(eval_dataset_name, data_dir_path, eval_mode, code_column_n
                 data_num = len(data_list)
                 for idx, data in enumerate(ori_data_list):
                     temp_data = {}
-                    temp_data['in_file_prompt'] = f"{data['import_statement']}\n{data[code_column_name]}\n"
+                    temp_data['in_file_prompt'] = f"{data['import_statement']}\n{data[code_column_name]}"
                     temp_data['tag'] = tag_name
                     temp_data['id'] = idx + data_num
                     temp_data['ground_truth'] = data['next_line']
+                    data_list.append(temp_data)
+        elif eval_dataset_name == "cceval":
+            data_list = []
+            file_name2tag_map = {"openai_cosine_sim":"openai"} #"openai_cosine_sim":"openai", "unixcoder_cosine_sim":"unixcoder"} 
+            for file_name, tag_name in file_name2tag_map.items():
+                data_file_path = os.path.join(data_dir_path, f"line_completion_oracle_{file_name}.jsonl")
+                print(">>> start load data from data_file_path:", data_file_path)
+                ori_data_list = load_list_from_jsonl(data_file_path)
+                for idx, data in enumerate(ori_data_list):
+                    temp_data = {}
+                    new_data = convert_cceval_data(data)
+                    temp_data['in_file_prompt'] = f"{new_data[code_column_name]}\n"
+                    temp_data['tag'] = tag_name
+                    temp_data['id'] = idx 
+                    temp_data['ground_truth'] = new_data['next_line']
                     data_list.append(temp_data)
 
     elif eval_mode == "dev":

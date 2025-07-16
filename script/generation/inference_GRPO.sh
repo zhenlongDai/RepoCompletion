@@ -1,8 +1,13 @@
-export CUDA_VISIBLE_DEVICES=5
+export CUDA_VISIBLE_DEVICES=2,5
 model_name="Qwen2.5-Coder-7B-Instruct"
 save_name="$model_name-EM"
 language="java"
-eval_dataset_name="repobench"
+eval_dataset_name="cceval" #repobench/cceval
+if [ "$eval_dataset_name" = "repobench" ]; then
+    data_path_dir="datasets/$eval_dataset_name/$language/test"
+else
+    data_path_dir="datasets/$eval_dataset_name/$language"
+fi
 without_context=false
 lora_path="./weights/$language/Qwen2.5-7B-Instruct-EM/checkpoint-500"
 #如果without_context为true，则不使用上下文，prediction_file的路径需要修改
@@ -14,12 +19,13 @@ fi
 
 cmd="python -m generation.InferencePipeline \
     --config generation/config_file/GRPOConfig.yaml \
-    --model ../../package/CodeLLM/$model_name \
-    --data_path_dir datasets/$eval_dataset_name/$language/test \
+    --eval_dataset_name $eval_dataset_name \
+    --model_path ../../package/CodeLLM/$model_name \
+    --data_path_dir $data_path_dir \
     --language $language \
     --save_file_path $save_file_path \
     --dtype float16 \
-    --dp_size 1 \
+    --dp_size 2 \
     --tp_size 1 \
     --gpu_memory_utilization 0.7 \
     --temperature 0.7 \
