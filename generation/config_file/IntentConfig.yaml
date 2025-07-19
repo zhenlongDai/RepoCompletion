@@ -9,7 +9,7 @@ data_path_dir: "None" #datasets/repobench/java/test
 debug_mode: false
 language: "None"  # Options: "java", "python"
 max_input_tokens: 10000
-max_output_tokens: 1000
+max_output_tokens: 512
 save_file_path: "output_dir/generation/repobench/java/QwenCoder0.5B.json"
 system_prompt: "You are a helpful assistant tasked with completing the next line of a repository-level code file.
  You are provided with an incomplete code file and other code snippets from the same repository. 

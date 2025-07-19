@@ -5,11 +5,12 @@ from utils.json_util import load_list_from_json
 from tree_sitter import Language, Parser
 from functools import partial
 from collections import Counter, defaultdict
+from tqdm import tqdm
 
 def get_em_map(prediction_list, groundtruth_map, language, parser):
     em_map = {}
     worker = partial(process_examples, language, parser)
-    for sample in prediction_list:
+    for sample in tqdm(prediction_list):
         ex = groundtruth_map[sample["id"]]
         trunc_s, em_label = worker((sample, ex))
         em_map[sample["id"]] = em_label

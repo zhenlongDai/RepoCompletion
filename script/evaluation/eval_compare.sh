@@ -1,10 +1,10 @@
-language="java"
+language="python"
 eval_dataset_name="repobench"
-model_name="Qwen2.5-Coder-7B-Instruct-Lora"
+model_name="starcoder2-7b"
 
 # 文件1：不使用context
-#prediction_file1="./output_dir/generation/$eval_dataset_name/$language/without_context/$model_name.json"
-prediction_file1="./output_dir/generation/repobench/java/without_context/Qwen2.5-Coder-7B-Instruct.json"
+prediction_file1="./output_dir/generation/$eval_dataset_name/$language/without_context/$model_name.json"
+#prediction_file1="./output_dir/generation/repobench/java/without_context/Qwen2.5-Coder-7B-Instruct.json"
 # 文件2：使用context
 prediction_file2="./output_dir/generation/$eval_dataset_name/$language/$model_name.json"
 

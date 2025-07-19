@@ -1,6 +1,6 @@
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0,3
 export NCCL_P2P_DISABLE=1
-model_name="CodeLlama-34b-Instruct"
+model_name="Qwen2.5-Coder-32B-Instruct"
 save_name="$model_name"
 language="java"
 eval_dataset_name="repobench" #repobench/cceval
@@ -11,7 +11,7 @@ else
     data_path_dir="datasets/$eval_dataset_name/$language"
 fi
 
-without_context=false
+without_context=true
 #如果without_context为true，则不使用上下文，prediction_file的路径需要修改
 if [ "$without_context" = true ]; then
     save_file_path="./output_dir/generation/$eval_dataset_name/$language/without_context/$save_name.json"
@@ -23,7 +23,7 @@ cmd="python -m generation.InferencePipeline \
     --config generation/config_file/inferenceConfig.yaml \
     --eval_dataset_name $eval_dataset_name \
     --prompt_mode $prompt_mode \
-    --model_path ../../package/CodeLLM/$model_name \
+    --model_path /data/LLMs/$model_name \
     --data_path_dir $data_path_dir \
     --language $language \
     --save_file_path $save_file_path \

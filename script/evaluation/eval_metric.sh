@@ -1,8 +1,8 @@
-language="python"
+language="java"
 without_context=false
 model_name="starcoder2-15b"
 eval_mode="test"
-#如果without_context为true，则不使用上下文，prediction_file的路径需要修改
+# if whithout_context is true, then do not use context, the path of prediction_file needs to be modified
 eval_dataset_name="repobench" #repobench/cceval
 if [ "$eval_dataset_name" = "repobench" ]; then
     data_path_dir="datasets/$eval_dataset_name/$language/test"
@@ -15,7 +15,7 @@ if [ "$without_context" = true ]; then
 else
     prediction_file="./output_dir/generation/$eval_dataset_name/$language/$model_name.json"
 fi
-prediction_file="/data/dzl/RL_project/RepoCompletion/output_dir/generation/repobench/python/CodeLlama-34b-Instruct.json"
+#prediction_file="/data/dzl/RL_project/RepoCompletion/output_dir/dev_evaluation/repobench/java/deepseek-coder-6.7b-instruct_intent/results/checkpoint-500_generation.json"
 python -m evaluation.eval_metric \
     --eval_dataset_name "$eval_dataset_name" \
     --language "$language" \

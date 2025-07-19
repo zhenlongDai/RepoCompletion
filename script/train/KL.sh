@@ -1,39 +1,29 @@
 #!/bin/bash
 
-# 启动第一个服务（后台），记录PID
-# CUDA_VISIBLE_DEVICES=0 trl vllm-serve --model /data/dzl/package/CodeLLM/Qwen2.5-Coder-7B-Instruct \
-#     --port 8300 --tensor_parallel_size 2
-# SERVE_PID=$!
 
-# # 等待端口8000开放，最多等待60秒
-# for i in {1..100}; do
-#     if nc -z localhost 8000; then
-#         echo "vllm-serve 已启动"
-#         break
-#     fi
-#     echo "等待 vllm-serve 启动...($i)"
-#     sleep 1
-# done
+# act the first service (background), record PID
+CUDA_VISIBLE_DEVICES=0 trl vllm-serve --model /data/dzl/package/CodeLLM/Qwen2.5-Coder-7B-Instruct \
+    --port 8100 --tensor_parallel_size 2
+SERVE_PID=$!
 
-# 启动第二个服务（前台）
-# export http_proxy=http://192.168.1.52:7891
-# export https_proxy=http://192.168.1.52:7891
-# export HTTP_PROXY=http://192.168.1.52:7891
-# export HTTPS_PROXY=http://192.168.1.52:7891
+# wait for port 8000 to be open, max wait time is 100 seconds
+for i in {1..100}; do
+    if nc -z localhost 8100; then
+        echo "vllm-serve started successfully on port 8100"
+        break
+    fi
+    echo "waiting for vllm-serve...($i)"
+    sleep 1
+done
+
+# act the second service (foreground)
 export CUDA_VISIBLE_DEVICES=0,1,3,4
 export WANDB_CONSOLE=off
 export RICH_DISABLE=1
 export WANDB_MODE=offline
-#export NCCL_P2P_DISABLE=1
-#export NCCL_IB_DISABLE=1
+
 
 accelerate launch --main_process_port 29300 --num_processes 4 --config_file configs/accelerate_configs/zero2.yaml train/choose_trainer.py \
-    --config configs/Qwen2.5-7B-Instruct/grpo/config_ablation-IC.yaml
+    --config configs/Qwen2.5-7B-Instruct/grpo/config_intent_G.yaml
 
-accelerate launch --main_process_port 29300 --num_processes 4 --config_file configs/accelerate_configs/zero2.yaml train/choose_trainer.py \
-    --config configs/Qwen2.5-7B-Instruct/grpo/config_ablation-IC_java.yaml
-
-
-# accelerate launch --main_process_port 29300 --num_processes 4 --config_file configs/accelerate_configs/zero2.yaml train/choose_trainer.py \
-#     --config configs/deepseek-coder-6.7b-instruct/grpo/config_ablation_KL.yaml
 
