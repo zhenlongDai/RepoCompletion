@@ -2,12 +2,12 @@
 A reinforcement learning for Repository-Level Code Completion, which imrpoves the model’s code completion ability across multiple scenarios, enhancing its capability to distinguish between cross-file and in-file completion through intent recognition and selective-exploration strategy optimization, making the model applicable to practical completion scenarios.
 
 #### Overview of IntentCoder
-![fig.](Fig/model.png)
+![fig.](./Fig/model.png)
 Overview of IntentCoder. (a) Illustration of the Completion-Focused Reinforcement Learning process. (b) Illustration of the Selective-Exploration Strategy Optimization.
 
 
 ####  Examples of repository-level code completion
-![fig.](Fig/intro.png)
+![fig.](./Fig/intro.png)
 Examples of repository-level code completion. Ex-
 amples of repository-level code completion. Situation (1)
 reveals that the model gives insufficient consideration to
@@ -18,7 +18,7 @@ leads to errors.
 
 
 #### Case 
-![fig.](Fig/case.png)
+![fig.](./Fig/case.png)
 The case study for IntentCoder.
 
 #### Environmental installation
