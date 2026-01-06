@@ -1,5 +1,6 @@
-# Towards Effective Repository-Level Code Completion: Reinforcement Learning for In-File and Cross-File Contexts
-A reinforcement learning for Repository-Level Code Completion, which imrpoves the model’s code completion ability across multiple scenarios, enhancing its capability to distinguish between cross-file and in-file completion through intent recognition and selective-exploration strategy optimization, making the model applicable to practical completion scenarios.
+# Enhancing Repository-Level Code Completion with Reinforcement Learning in Real-World Scenarios
+
+A reinforcement learning for Repository-Level Code Completion, which improves the model’s code completion ability across multiple scenarios, enhancing its capability to distinguish between cross-file and in-file completion through intent recognition and selective-exploration strategy optimization, making the model applicable to practical completion scenarios.
 
 #### Overview of IntentCoder
 ![fig.](./Fig/model.png)
