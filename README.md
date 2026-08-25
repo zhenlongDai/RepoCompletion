@@ -50,7 +50,7 @@ excute `uv pip install cachetools==5.5.2`
 1. download test data
 you should execute the script `script/process_dataset.sh`
 
-2. download and processtrain data
+2. download and process train data
 `process_mode` is setting for `process_import_compeltion_dataset`,`process_retrieval_compeltion_dataset` and `merge_import_and_retrieval` one by one.
 you should execute the script `script/process_train_dataset.sh`
 
